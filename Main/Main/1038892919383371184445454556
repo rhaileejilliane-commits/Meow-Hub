@@ -1,0 +1,2116 @@
+-- ====================================================================
+-- MeowHUB 3.0 - Exact Suit Icon Sidebar Style UI (Multi-Theme System)
+-- ====================================================================
+
+-- Services
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local Stats = game:GetService("Stats")
+local HttpService = game:GetService("HttpService")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- Target UI Parent setup
+local ParentTarget = LocalPlayer:WaitForChild("PlayerGui")
+if gethui then
+    ParentTarget = gethui()
+end
+
+-- Remove duplicate instances if re-executing
+if ParentTarget:FindFirstChild("DarkThemeUI") then
+    ParentTarget.DarkThemeUI:Destroy()
+end
+if ParentTarget:FindFirstChild("FollowStatusGui") then
+    ParentTarget.FollowStatusGui:Destroy()
+end
+if ParentTarget:FindFirstChild("WallhopStatusGui") then
+    ParentTarget.WallhopStatusGui:Destroy()
+end
+if ParentTarget:FindFirstChild("AutoFlickStatusGui") then
+    ParentTarget.AutoFlickStatusGui:Destroy()
+end
+if ParentTarget:FindFirstChild("FpsPingGui") then
+    ParentTarget.FpsPingGui:Destroy()
+end
+if ParentTarget:FindFirstChild("MeowHubIntroGui") then
+    ParentTarget.MeowHubIntroGui:Destroy()
+end
+if ParentTarget:FindFirstChild("MeowHubExpiredGui") then
+    ParentTarget.MeowHubExpiredGui:Destroy()
+end
+
+-- ====================================================================
+-- 1-Week Expiration Check System (Persistent via HttpService / TeleportData or tick)
+-- ====================================================================
+local EXPIRATION_DURATION = 7 * 24 * 60 * 60 -- 1 Week in seconds
+
+-- Use a unique key for the player's local storage/registry if supported, 
+-- or fallback to a session-persistent table / os.time check. 
+local firstLaunchTime = nil
+local success, savedTime = pcall(function()
+    if readfile and writefile and isfile and isfile("MeowHub_License.txt") then
+        return tonumber(readfile("MeowHub_License.txt"))
+    end
+    return nil
+end)
+
+if success and savedTime then
+    firstLaunchTime = savedTime
+else
+    firstLaunchTime = os.time()
+    pcall(function()
+        if writefile then
+            writefile("MeowHub_License.txt", tostring(firstLaunchTime))
+        end
+    end)
+end
+
+local function getRemainingTime()
+    local elapsedTime = os.time() - firstLaunchTime
+    local timeLeft = EXPIRATION_DURATION - elapsedTime
+    return math.max(0, timeLeft)
+end
+
+-- If expired immediately upon execution, show expired screen and halt
+if getRemainingTime() <= 0 then
+    local ExpiredGui = Instance.new("ScreenGui")
+    ExpiredGui.Name = "MeowHubExpiredGui"
+    ExpiredGui.ResetOnSpawn = false
+    ExpiredGui.Parent = ParentTarget
+
+    local ExpiredFrame = Instance.new("Frame")
+    ExpiredFrame.Size = UDim2.new(0, 380, 0, 140)
+    ExpiredFrame.Position = UDim2.new(0.5, -190, 0.5, -70)
+    ExpiredFrame.BackgroundColor3 = Color3.fromRGB(28, 20, 25)
+    ExpiredFrame.BackgroundTransparency = 0.05
+    ExpiredFrame.BorderSizePixel = 0
+    ExpiredFrame.Parent = ExpiredGui
+
+    local ExpCorner = Instance.new("UICorner")
+    ExpCorner.CornerRadius = UDim.new(0, 12)
+    ExpCorner.Parent = ExpiredFrame
+
+    local ExpStroke = Instance.new("UIStroke")
+    ExpStroke.Color = Color3.fromRGB(255, 100, 100)
+    ExpStroke.Thickness = 1.5
+    ExpStroke.Parent = ExpiredFrame
+
+    local ExpIcon = Instance.new("TextLabel")
+    ExpIcon.Size = UDim2.new(1, 0, 0, 30)
+    ExpIcon.Position = UDim2.new(0, 0, 0, 16)
+    ExpIcon.BackgroundTransparency = 1
+    ExpIcon.Text = "⚠️"
+    ExpIcon.TextColor3 = Color3.fromRGB(255, 100, 100)
+    ExpIcon.Font = Enum.Font.Arcade
+    ExpIcon.TextSize = 22
+    ExpIcon.Parent = ExpiredFrame
+
+    local ExpText = Instance.new("TextLabel")
+    ExpText.Size = UDim2.new(1, -20, 0, 50)
+    ExpText.Position = UDim2.new(0, 10, 0, 55)
+    ExpText.BackgroundTransparency = 1
+    ExpText.Text = "Access Expired!\nYour 1-week free trial for MeowHUB has ended."
+    ExpText.TextColor3 = Color3.fromRGB(255, 240, 245)
+    ExpText.Font = Enum.Font.Arcade
+    ExpText.TextSize = 12
+    ExpText.TextWrapped = true
+    ExpText.Parent = ExpiredFrame
+    
+    return -- Halt script execution entirely
+end
+
+-- Pixelated Font Selection
+local PixelFont = Enum.Font.Arcade
+
+-- ====================================================================
+-- Global Theme Palette System (Multi-Theme Support)
+-- ====================================================================
+local CurrentTheme = "PinkFade"
+
+local Themes = {
+    PinkFade = {
+        Primary = Color3.fromRGB(255, 182, 193),      -- Soft Light Pink Accent
+        Background = Color3.fromRGB(28, 20, 25),        -- Deep Dark Rose/Black Background
+        Sidebar = Color3.fromRGB(36, 26, 33),         -- Muted Dark Pink-Gray Sidebar
+        CardBg = Color3.fromRGB(46, 34, 42),          -- Module Card Background
+        TextMain = Color3.fromRGB(255, 240, 245),     -- Pure White/Soft Pink text
+        TextMuted = Color3.fromRGB(200, 160, 175),    -- Faded Pink Subtitles / Placeholders
+        AccentGlow = Color3.fromRGB(255, 105, 180),   -- Hot Pink Glow
+    },
+    White = {
+        Primary = Color3.fromRGB(240, 240, 240),
+        Background = Color3.fromRGB(20, 20, 20),
+        Sidebar = Color3.fromRGB(28, 28, 28),
+        CardBg = Color3.fromRGB(38, 38, 38),
+        TextMain = Color3.fromRGB(255, 255, 255),
+        TextMuted = Color3.fromRGB(170, 170, 170),
+        AccentGlow = Color3.fromRGB(255, 255, 255),
+    },
+    Yellow = {
+        Primary = Color3.fromRGB(255, 223, 0),
+        Background = Color3.fromRGB(22, 22, 18),
+        Sidebar = Color3.fromRGB(30, 30, 24),
+        CardBg = Color3.fromRGB(40, 40, 32),
+        TextMain = Color3.fromRGB(255, 250, 230),
+        TextMuted = Color3.fromRGB(180, 170, 130),
+        AccentGlow = Color3.fromRGB(255, 200, 0),
+    },
+    Blue = {
+        Primary = Color3.fromRGB(100, 180, 255),
+        Background = Color3.fromRGB(18, 22, 28),
+        Sidebar = Color3.fromRGB(24, 30, 38),
+        CardBg = Color3.fromRGB(32, 40, 50),
+        TextMain = Color3.fromRGB(240, 245, 255),
+        TextMuted = Color3.fromRGB(140, 160, 180),
+        AccentGlow = Color3.fromRGB(50, 150, 255),
+    },
+    Green = {
+        Primary = Color3.fromRGB(100, 255, 140),
+        Background = Color3.fromRGB(18, 26, 20),
+        Sidebar = Color3.fromRGB(24, 34, 26),
+        CardBg = Color3.fromRGB(32, 46, 36),
+        TextMain = Color3.fromRGB(240, 255, 245),
+        TextMuted = Color3.fromRGB(140, 180, 150),
+        AccentGlow = Color3.fromRGB(50, 255, 100),
+    },
+    Red = {
+        Primary = Color3.fromRGB(255, 100, 100),
+        Background = Color3.fromRGB(28, 18, 18),
+        Sidebar = Color3.fromRGB(38, 24, 24),
+        CardBg = Color3.fromRGB(50, 32, 32),
+        TextMain = Color3.fromRGB(255, 240, 240),
+        TextMuted = Color3.fromRGB(190, 140, 140),
+        AccentGlow = Color3.fromRGB(255, 50, 50),
+    },
+    Purple = {
+        Primary = Color3.fromRGB(190, 120, 255),
+        Background = Color3.fromRGB(24, 18, 28),
+        Sidebar = Color3.fromRGB(32, 24, 38),
+        CardBg = Color3.fromRGB(44, 32, 52),
+        TextMain = Color3.fromRGB(250, 240, 255),
+        TextMuted = Color3.fromRGB(170, 140, 190),
+        AccentGlow = Color3.fromRGB(160, 50, 255),
+    },
+    Black = {
+        Primary = Color3.fromRGB(160, 160, 160),
+        Background = Color3.fromRGB(10, 10, 10),
+        Sidebar = Color3.fromRGB(16, 16, 16),
+        CardBg = Color3.fromRGB(24, 24, 24),
+        TextMain = Color3.fromRGB(220, 220, 220),
+        TextMuted = Color3.fromRGB(120, 120, 120),
+        AccentGlow = Color3.fromRGB(80, 80, 80),
+    }
+}
+
+-- ====================================================================
+-- Welcome Intro Screen (Typing Animation Effect)
+-- ====================================================================
+local IntroGui = Instance.new("ScreenGui")
+IntroGui.Name = "MeowHubIntroGui"
+IntroGui.ResetOnSpawn = false
+IntroGui.Parent = ParentTarget
+
+local IntroFrame = Instance.new("Frame")
+IntroFrame.Size = UDim2.new(0, 380, 0, 120)
+IntroFrame.Position = UDim2.new(0.5, -190, 0.5, -60)
+IntroFrame.BackgroundColor3 = Themes[CurrentTheme].Background
+IntroFrame.BackgroundTransparency = 0.1
+IntroFrame.BorderSizePixel = 0
+IntroFrame.Parent = IntroGui
+
+local IntroCorner = Instance.new("UICorner")
+IntroCorner.CornerRadius = UDim.new(0, 12)
+IntroCorner.Parent = IntroFrame
+
+local IntroStroke = Instance.new("UIStroke")
+IntroStroke.Color = Themes[CurrentTheme].Primary
+IntroStroke.Transparency = 0.4
+IntroStroke.Thickness = 1.5
+IntroStroke.Parent = IntroFrame
+
+local IntroIcon = Instance.new("TextLabel")
+IntroIcon.Size = UDim2.new(1, 0, 0, 30)
+IntroIcon.Position = UDim2.new(0, 0, 0, 16)
+IntroIcon.BackgroundTransparency = 1
+IntroIcon.Text = "♡"
+IntroIcon.TextColor3 = Themes[CurrentTheme].Primary
+IntroIcon.Font = PixelFont
+IntroIcon.TextSize = 22
+IntroIcon.Parent = IntroFrame
+
+local IntroText = Instance.new("TextLabel")
+IntroText.Size = UDim2.new(1, -20, 0, 35)
+IntroText.Position = UDim2.new(0, 10, 0, 55)
+IntroText.BackgroundTransparency = 1
+IntroText.Text = ""
+IntroText.TextColor3 = Themes[CurrentTheme].TextMain
+IntroText.Font = PixelFont
+IntroText.TextSize = 16
+IntroText.Parent = IntroFrame
+
+-- ScreenGui Container for Main UI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "DarkThemeUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Enabled = false
+ScreenGui.Parent = ParentTarget
+
+-- Main Window Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 640, 0, 380)
+MainFrame.Position = UDim2.new(0.5, -320, 0.5, -190)
+MainFrame.BackgroundColor3 = Themes[CurrentTheme].Background
+MainFrame.BackgroundTransparency = 0.05
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = Color3.fromRGB(100, 60, 80)
+MainStroke.Thickness = 1.5
+MainStroke.Parent = MainFrame
+
+-- Minimized Circle Button (Draggable, with '♡')
+local MinimizedBar = Instance.new("TextButton")
+MinimizedBar.Size = UDim2.new(0, 42, 0, 42)
+MinimizedBar.Position = UDim2.new(0, 20, 0, 20)
+MinimizedBar.BackgroundColor3 = Themes[CurrentTheme].CardBg
+MinimizedBar.BackgroundTransparency = 0.1
+MinimizedBar.BorderSizePixel = 0
+MinimizedBar.Text = "♡"
+MinimizedBar.TextColor3 = Themes[CurrentTheme].Primary
+MinimizedBar.Font = PixelFont
+MinimizedBar.TextSize = 18
+MinimizedBar.Visible = false
+MinimizedBar.Parent = ScreenGui
+
+local MinimizedCorner = Instance.new("UICorner")
+MinimizedCorner.CornerRadius = UDim.new(1, 0)
+MinimizedCorner.Parent = MinimizedBar
+
+local MinimizedStroke = Instance.new("UIStroke")
+MinimizedStroke.Color = Color3.fromRGB(255, 182, 193)
+MinimizedStroke.Transparency = 0.5
+MinimizedStroke.Thickness = 1
+MinimizedStroke.Parent = MinimizedBar
+
+-- Top Header Bar
+local TopBar = Instance.new("Frame")
+TopBar.Size = UDim2.new(1, 0, 0, 45)
+TopBar.BackgroundColor3 = Themes[CurrentTheme].Sidebar
+TopBar.BackgroundTransparency = 0
+TopBar.BorderSizePixel = 0
+TopBar.Parent = MainFrame
+
+local TopBarCorner = Instance.new("UICorner")
+TopBarCorner.CornerRadius = UDim.new(0, 10)
+TopBarCorner.Parent = TopBar
+
+local TopCornerFix = Instance.new("Frame")
+TopCornerFix.Size = UDim2.new(1, 0, 0, 10)
+TopCornerFix.Position = UDim2.new(0, 0, 1, -10)
+TopCornerFix.BackgroundColor3 = Themes[CurrentTheme].Sidebar
+TopCornerFix.BorderSizePixel = 0
+TopCornerFix.Parent = TopBar
+
+local Icon = Instance.new("TextLabel")
+Icon.Name = "HubIcon"
+Icon.Size = UDim2.new(0, 24, 0, 24)
+Icon.Position = UDim2.new(0, 15, 0, 10)
+Icon.BackgroundTransparency = 1
+Icon.Text = "♡"
+Icon.TextColor3 = Themes[CurrentTheme].Primary
+Icon.Font = PixelFont
+Icon.TextSize = 18
+Icon.Parent = TopBar
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(0, 120, 1, 0)
+TitleLabel.Position = UDim2.new(0, 42, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "MeowHUB"
+TitleLabel.TextColor3 = Themes[CurrentTheme].TextMain
+TitleLabel.Font = PixelFont
+TitleLabel.TextSize = 14
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = TopBar
+
+-- Top Search Bar Container
+local SearchContainer = Instance.new("Frame")
+SearchContainer.Size = UDim2.new(0, 180, 0, 28)
+SearchContainer.Position = UDim2.new(1, -230, 0.5, -14)
+SearchContainer.BackgroundColor3 = Color3.fromRGB(40, 28, 35)
+SearchContainer.BorderSizePixel = 0
+SearchContainer.Parent = TopBar
+
+local SearchCorner = Instance.new("UICorner")
+SearchCorner.CornerRadius = UDim.new(0, 6)
+SearchCorner.Parent = SearchContainer
+
+local SearchStroke = Instance.new("UIStroke")
+SearchStroke.Color = Color3.fromRGB(90, 50, 70)
+SearchStroke.Thickness = 1
+SearchStroke.Parent = SearchContainer
+
+local SearchIcon = Instance.new("TextLabel")
+SearchIcon.Size = UDim2.new(0, 24, 1, 0)
+SearchIcon.Position = UDim2.new(0, 6, 0, 0)
+SearchIcon.BackgroundTransparency = 1
+SearchIcon.Text = "O"
+SearchIcon.TextColor3 = Themes[CurrentTheme].TextMuted
+SearchIcon.Font = PixelFont
+SearchIcon.TextSize = 12
+SearchIcon.Parent = SearchContainer
+
+local SearchBox = Instance.new("TextBox")
+SearchBox.Size = UDim2.new(1, -34, 1, 0)
+SearchBox.Position = UDim2.new(0, 30, 0, 0)
+SearchBox.BackgroundTransparency = 1
+SearchBox.Text = ""
+SearchBox.PlaceholderText = "Search..."
+SearchBox.TextColor3 = Themes[CurrentTheme].TextMain
+SearchBox.PlaceholderColor3 = Themes[CurrentTheme].TextMuted
+SearchBox.Font = PixelFont
+SearchBox.TextSize = 10
+SearchBox.TextXAlignment = Enum.TextXAlignment.Left
+SearchBox.Parent = SearchContainer
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 40, 0, 45)
+CloseBtn.Position = UDim2.new(1, -40, 0, 0)
+CloseBtn.Text = "-"
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.TextColor3 = Themes[CurrentTheme].TextMuted
+CloseBtn.Font = PixelFont
+CloseBtn.TextSize = 14
+CloseBtn.Parent = TopBar
+
+local function minimizeGUI()
+    local startPos = MainFrame.AbsolutePosition
+    local tween = TweenService:Create(
+        MainFrame,
+        TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {
+            Size = UDim2.new(0, 42, 0, 42),
+            Position = UDim2.new(0, startPos.X, 0, startPos.Y),
+            BackgroundTransparency = 1
+        }
+    )
+    tween:Play()
+    tween.Completed:Connect(function()
+        MainFrame.Visible = false
+        MainFrame.Size = UDim2.new(0, 640, 0, 380)
+        MainFrame.Position = UDim2.new(0.5, -320, 0.5, -190)
+        MainFrame.BackgroundTransparency = 0.05
+        MinimizedBar.Visible = true
+    end)
+end
+
+local function restoreGUI()
+    MinimizedBar.Visible = false
+    MainFrame.Visible = true
+    MainFrame.Size = UDim2.new(0, 42, 0, 42)
+    MainFrame.BackgroundTransparency = 1
+
+    local tween = TweenService:Create(
+        MainFrame,
+        TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {
+            Size = UDim2.new(0, 640, 0, 380),
+            Position = UDim2.new(0.5, -320, 0.5, -190),
+            BackgroundTransparency = 0.05
+        }
+    )
+    tween:Play()
+end
+
+CloseBtn.MouseButton1Click:Connect(minimizeGUI)
+MinimizedBar.MouseButton1Click:Connect(restoreGUI)
+
+-- Dragging System for Main UI Window
+local dragging, dragInput, dragStart, startPos
+
+TopBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+TopBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input == dragInput then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+-- Dragging System for Minimized Circle Button
+local minDragging, minDragInput, minDragStart, minStartPos
+
+MinimizedBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        minDragging = true
+        minDragStart = input.Position
+        minStartPos = MinimizedBar.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                minDragging = false
+            end
+        end)
+    end
+end)
+
+MinimizedBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        minDragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if minDragging and input == minDragInput then
+        local delta = input.Position - minDragStart
+        MinimizedBar.Position = UDim2.new(
+            minStartPos.X.Scale,
+            minStartPos.X.Offset + delta.X,
+            minStartPos.Y.Scale,
+            minStartPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+-- Sidebar Navigation & Pages Area
+local Sidebar = Instance.new("Frame")
+Sidebar.Size = UDim2.new(0, 65, 1, -45)
+Sidebar.Position = UDim2.new(0, 0, 0, 45)
+Sidebar.BackgroundColor3 = Themes[CurrentTheme].Sidebar
+Sidebar.BackgroundTransparency = 0
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = MainFrame
+
+local SidebarDivider = Instance.new("Frame")
+SidebarDivider.Size = UDim2.new(0, 1, 1, 0)
+SidebarDivider.Position = UDim2.new(1, 0, 0, 0)
+SidebarDivider.BackgroundColor3 = Color3.fromRGB(70, 45, 60)
+SidebarDivider.BorderSizePixel = 0
+SidebarDivider.Parent = Sidebar
+
+local ContentArea = Instance.new("Frame")
+ContentArea.Size = UDim2.new(1, -65, 1, -45)
+ContentArea.Position = UDim2.new(0, 65, 0, 45)
+ContentArea.BackgroundTransparency = 1
+ContentArea.Parent = MainFrame
+
+local Pages = {}
+local NavButtons = {}
+local ToggleSetters = {}
+
+local function SwitchPage(pageName)
+    for name, page in pairs(Pages) do
+        page.Visible = (name == pageName)
+    end
+    for name, btn in pairs(NavButtons) do
+        local iconObj = btn:FindFirstChild("IconLabel")
+        if name == pageName then
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(70, 45, 60)}):Play()
+            if iconObj then
+                TweenService:Create(iconObj, TweenInfo.new(0.2), {TextColor3 = Themes[CurrentTheme].Primary}):Play()
+            end
+        else
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(42, 30, 39)}):Play()
+            if iconObj then
+                TweenService:Create(iconObj, TweenInfo.new(0.2), {TextColor3 = Themes[CurrentTheme].TextMuted}):Play()
+            end
+        end
+    end
+end
+
+local function CreateNavButton(name, symbol, posY)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 42, 0, 42)
+    btn.Position = UDim2.new(0.5, -21, 0, posY)
+    btn.BackgroundColor3 = Color3.fromRGB(42, 30, 39)
+    btn.BorderSizePixel = 0
+    btn.Text = ""
+    btn.Parent = Sidebar
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = btn
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(90, 55, 75)
+    stroke.Thickness = 1
+    stroke.Parent = btn
+
+    local iconLabel = Instance.new("TextLabel")
+    iconLabel.Name = "IconLabel"
+    iconLabel.Size = UDim2.new(1, 0, 1, 0)
+    iconLabel.BackgroundTransparency = 1
+    iconLabel.Text = symbol
+    iconLabel.TextColor3 = Themes[CurrentTheme].TextMuted
+    iconLabel.Font = PixelFont
+    iconLabel.TextSize = 14
+    iconLabel.Parent = btn
+
+    NavButtons[name] = btn
+
+    btn.MouseButton1Click:Connect(function()
+        SwitchPage(name)
+    end)
+
+    return btn
+end
+
+-- Home Page Setup (First ♡)
+local HomePage = Instance.new("ScrollingFrame")
+HomePage.Size = UDim2.new(1, 0, 1, 0)
+HomePage.BackgroundTransparency = 1
+HomePage.Visible = true
+HomePage.ScrollBarThickness = 3
+HomePage.BorderSizePixel = 0
+HomePage.CanvasSize = UDim2.new(0, 0, 0, 340)
+HomePage.Parent = ContentArea
+Pages["Home"] = HomePage
+CreateNavButton("Home", "♡", 12)
+
+local HomeUIListLayout = Instance.new("UIListLayout")
+HomeUIListLayout.Parent = HomePage
+HomeUIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+HomeUIListLayout.Padding = UDim.new(0, 10)
+HomeUIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+local HomeSpacer = Instance.new("Frame")
+HomeSpacer.Size = UDim2.new(1, 0, 0, 5)
+HomeSpacer.BackgroundTransparency = 1
+HomeSpacer.Parent = HomePage
+
+local HomeBanner = Instance.new("Frame")
+HomeBanner.Size = UDim2.new(1, -30, 0, 70)
+HomeBanner.BackgroundColor3 = Themes[CurrentTheme].CardBg
+HomeBanner.BorderSizePixel = 0
+HomeBanner.Parent = HomePage
+
+local HomeBannerCorner = Instance.new("UICorner")
+HomeBannerCorner.CornerRadius = UDim.new(0, 8)
+HomeBannerCorner.Parent = HomeBanner
+
+local WelcomeText = Instance.new("TextLabel")
+WelcomeText.Size = UDim2.new(1, -20, 1, 0)
+WelcomeText.Position = UDim2.new(0, 10, 0, 0)
+WelcomeText.BackgroundTransparency = 1
+WelcomeText.Text = "Welcome, " .. LocalPlayer.DisplayName .. "! Thank you for executing MeowHUB"
+WelcomeText.TextColor3 = Themes[CurrentTheme].TextMain
+WelcomeText.Font = PixelFont
+WelcomeText.TextSize = 11
+WelcomeText.TextWrapped = true
+WelcomeText.Parent = HomeBanner
+
+local ProfileCard = Instance.new("Frame")
+ProfileCard.Size = UDim2.new(1, -30, 0, 130)
+ProfileCard.BackgroundColor3 = Themes[CurrentTheme].CardBg
+ProfileCard.BorderSizePixel = 0
+ProfileCard.Parent = HomePage
+
+local ProfileCorner = Instance.new("UICorner")
+ProfileCorner.CornerRadius = UDim.new(0, 8)
+ProfileCorner.Parent = ProfileCard
+
+local AvatarImage = Instance.new("ImageLabel")
+AvatarImage.Size = UDim2.new(0, 90, 0, 90)
+AvatarImage.Position = UDim2.new(0, 15, 0.5, -45)
+AvatarImage.BackgroundColor3 = Color3.fromRGB(60, 40, 50)
+AvatarImage.BorderSizePixel = 0
+AvatarImage.Parent = ProfileCard
+
+local AvatarCorner = Instance.new("UICorner")
+AvatarCorner.CornerRadius = UDim.new(0, 8)
+AvatarCorner.Parent = AvatarImage
+
+task.spawn(function()
+    local content, isLoaded = Players:GetUserThumbnailAsync(
+        LocalPlayer.UserId,
+        Enum.ThumbnailType.HeadShot,
+        Enum.ThumbnailSize.Size150x150
+    )
+    if isLoaded then
+        AvatarImage.Image = content
+    end
+end)
+
+local InfoContainer = Instance.new("Frame")
+InfoContainer.Size = UDim2.new(1, -125, 1, -10)
+InfoContainer.Position = UDim2.new(0, 115, 0, 5)
+InfoContainer.BackgroundTransparency = 1
+InfoContainer.Parent = ProfileCard
+
+local InfoListLayout = Instance.new("UIListLayout")
+InfoListLayout.Parent = InfoContainer
+InfoListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+InfoListLayout.Padding = UDim.new(0, 4)
+
+local function CreateProfileLabel(title, value)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, 0, 0, 22)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = title .. ": " .. value
+    lbl.TextColor3 = Themes[CurrentTheme].TextMain
+    lbl.Font = PixelFont
+    lbl.RichText = false
+    lbl.TextSize = 10
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = InfoContainer
+    return lbl
+end
+
+local joinDateStr = "Loading..."
+task.spawn(function()
+    local joinDays = LocalPlayer.AccountAge
+    local joinTime = os.time() - (joinDays * 86400)
+    joinDateStr = os.date("%B %d, %Y", joinTime) .. " (" .. joinDays .. " days ago)"
+end)
+
+CreateProfileLabel("Display Name", LocalPlayer.DisplayName)
+CreateProfileLabel("Username", "@" .. LocalPlayer.Name)
+CreateProfileLabel("User ID", tostring(LocalPlayer.UserId))
+local JoinLabel = CreateProfileLabel("Account Created", "Loading...")
+
+task.spawn(function()
+    task.wait(0.2)
+    JoinLabel.Text = "Account Created: " .. joinDateStr
+end)
+
+-- Combat Page Setup (Second ♡)
+local CombatPage = Instance.new("ScrollingFrame")
+CombatPage.Size = UDim2.new(1, 0, 1, 0)
+CombatPage.BackgroundTransparency = 1
+CombatPage.Visible = false
+CombatPage.ScrollBarThickness = 3
+CombatPage.BorderSizePixel = 0
+CombatPage.CanvasSize = UDim2.new(0, 0, 0, 1200)
+CombatPage.Parent = ContentArea
+Pages["Combat"] = CombatPage
+CreateNavButton("Combat", "♡", 64)
+
+local CombatUIListLayout = Instance.new("UIListLayout")
+CombatUIListLayout.Parent = CombatPage
+CombatUIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+CombatUIListLayout.Padding = UDim.new(0, 8)
+CombatUIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+local CombatSpacer = Instance.new("Frame")
+CombatSpacer.Size = UDim2.new(1, 0, 0, 5)
+CombatSpacer.BackgroundTransparency = 1
+CombatSpacer.Parent = CombatPage
+
+local InstructionBanner = Instance.new("Frame")
+InstructionBanner.Size = UDim2.new(1, -30, 0, 60)
+InstructionBanner.BackgroundColor3 = Themes[CurrentTheme].CardBg
+InstructionBanner.BorderSizePixel = 0
+InstructionBanner.Parent = CombatPage
+
+local InstructionBannerCorner = Instance.new("UICorner")
+InstructionBannerCorner.CornerRadius = UDim.new(0, 8)
+InstructionBannerCorner.Parent = InstructionBanner
+
+local InstructionText = Instance.new("TextLabel")
+InstructionText.Size = UDim2.new(1, -20, 1, 0)
+InstructionText.Position = UDim2.new(0, 10, 0, 0)
+InstructionText.BackgroundTransparency = 1
+InstructionText.Text = "To make Auto Wallhop work: Go to a wall & enable Inf Jump."
+InstructionText.TextColor3 = Themes[CurrentTheme].TextMuted
+InstructionText.Font = PixelFont
+InstructionText.TextSize = 10
+InstructionText.TextWrapped = true
+InstructionText.Parent = InstructionBanner
+
+-- Visual Page Setup (Third ♡)
+local VisualPage = Instance.new("ScrollingFrame")
+VisualPage.Size = UDim2.new(1, 0, 1, 0)
+VisualPage.BackgroundTransparency = 1
+VisualPage.Visible = false
+VisualPage.ScrollBarThickness = 3
+VisualPage.BorderSizePixel = 0
+VisualPage.CanvasSize = UDim2.new(0, 0, 0, 400)
+VisualPage.Parent = ContentArea
+Pages["Visual"] = VisualPage
+CreateNavButton("Visual", "♡", 116)
+
+local VisualUIListLayout = Instance.new("UIListLayout")
+VisualUIListLayout.Parent = VisualPage
+VisualUIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+VisualUIListLayout.Padding = UDim.new(0, 8)
+VisualUIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+local VisualSpacer = Instance.new("Frame")
+VisualSpacer.Size = UDim2.new(1, 0, 0, 5)
+VisualSpacer.BackgroundTransparency = 1
+VisualSpacer.Parent = VisualPage
+
+-- Settings Page Setup (Fourth ♡)
+local SettingsPage = Instance.new("ScrollingFrame")
+SettingsPage.Size = UDim2.new(1, 0, 1, 0)
+SettingsPage.BackgroundTransparency = 1
+SettingsPage.Visible = false
+SettingsPage.ScrollBarThickness = 3
+SettingsPage.BorderSizePixel = 0
+SettingsPage.CanvasSize = UDim2.new(0, 0, 0, 450)
+SettingsPage.Parent = ContentArea
+Pages["Settings"] = SettingsPage
+CreateNavButton("Settings", "♡", 168)
+
+local SettingsUIListLayout = Instance.new("UIListLayout")
+SettingsUIListLayout.Parent = SettingsPage
+SettingsUIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+SettingsUIListLayout.Padding = UDim.new(0, 8)
+SettingsUIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+local SettingsSpacer = Instance.new("Frame")
+SettingsSpacer.Size = UDim2.new(1, 0, 0, 5)
+SettingsSpacer.BackgroundTransparency = 1
+SettingsSpacer.Parent = SettingsPage
+
+-- Expiration Card inside Settings Page
+local ExpirationCard = Instance.new("Frame")
+ExpirationCard.Size = UDim2.new(1, -30, 0, 55)
+ExpirationCard.BackgroundColor3 = Themes[CurrentTheme].CardBg
+ExpirationCard.BorderSizePixel = 0
+ExpirationCard.Parent = SettingsPage
+
+local ExpirationCorner = Instance.new("UICorner")
+ExpirationCorner.CornerRadius = UDim.new(0, 8)
+ExpirationCorner.Parent = ExpirationCard
+
+local ExpirationTitle = Instance.new("TextLabel")
+ExpirationTitle.Size = UDim2.new(1, -20, 0, 22)
+ExpirationTitle.Position = UDim2.new(0, 12, 0, 6)
+ExpirationTitle.BackgroundTransparency = 1
+ExpirationTitle.Text = "Expiration Status"
+ExpirationTitle.TextColor3 = Themes[CurrentTheme].TextMain
+ExpirationTitle.Font = PixelFont
+ExpirationTitle.TextSize = 11
+ExpirationTitle.TextXAlignment = Enum.TextXAlignment.Left
+ExpirationTitle.Parent = ExpirationCard
+
+local ExpirationTimerLabel = Instance.new("TextLabel")
+ExpirationTimerLabel.Size = UDim2.new(1, -20, 0, 20)
+ExpirationTimerLabel.Position = UDim2.new(0, 12, 0, 28)
+ExpirationTimerLabel.BackgroundTransparency = 1
+ExpirationTimerLabel.Text = "Loading timer..."
+ExpirationTimerLabel.TextColor3 = Themes[CurrentTheme].Primary
+ExpirationTimerLabel.Font = PixelFont
+ExpirationTimerLabel.TextSize = 10
+ExpirationTimerLabel.TextXAlignment = Enum.TextXAlignment.Left
+ExpirationTimerLabel.Parent = ExpirationCard
+
+-- Live Timer Update Loop
+task.spawn(function()
+    while true do
+        local rem = getRemainingTime()
+        if rem <= 0 then
+            ExpirationTimerLabel.Text = "Expiration : EXPIRED"
+            break
+        else
+            local days = math.floor(rem / 86400)
+            local hours = math.floor((rem % 86400) / 3600)
+            local minutes = math.floor((rem % 3600) / 60)
+            local seconds = rem % 60
+            ExpirationTimerLabel.Text = string.format("Expiration : %dD %02dH %02dM %02dS", days, hours, minutes, seconds)
+        end
+        task.wait(1)
+    end
+end)
+
+-- Theme Selector Container inside Settings Page
+local ThemeContainer = Instance.new("Frame")
+ThemeContainer.Size = UDim2.new(1, -30, 0, 90)
+ThemeContainer.BackgroundColor3 = Themes[CurrentTheme].CardBg
+ThemeContainer.BorderSizePixel = 0
+ThemeContainer.Parent = SettingsPage
+
+local ThemeCorner = Instance.new("UICorner")
+ThemeCorner.CornerRadius = UDim.new(0, 8)
+ThemeCorner.Parent = ThemeContainer
+
+local ThemeLabel = Instance.new("TextLabel")
+ThemeLabel.Size = UDim2.new(1, -20, 0, 25)
+ThemeLabel.Position = UDim2.new(0, 12, 0, 6)
+ThemeLabel.BackgroundTransparency = 1
+ThemeLabel.Text = "Color Theme (Pink, White, Yellow, Blue, Green, Red, Purple, Black)"
+ThemeLabel.TextColor3 = Themes[CurrentTheme].TextMain
+ThemeLabel.Font = PixelFont
+ThemeLabel.TextSize = 9
+ThemeLabel.TextXAlignment = Enum.TextXAlignment.Left
+ThemeLabel.Parent = ThemeContainer
+
+local ThemeGrid = Instance.new("Frame")
+ThemeGrid.Size = UDim2.new(1, -24, 0, 45)
+ThemeGrid.Position = UDim2.new(0, 12, 0, 35)
+ThemeGrid.BackgroundTransparency = 1
+ThemeGrid.Parent = ThemeContainer
+
+local ThemeGridLayout = Instance.new("UIGridLayout")
+ThemeGridLayout.Parent = ThemeGrid
+ThemeGridLayout.CellSize = UDim2.new(0, 65, 0, 32)
+ThemeGridLayout.CellPadding = UDim2.new(0, 6, 0, 6)
+ThemeGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local function ApplyTheme(themeName)
+    if not Themes[themeName] then return end
+    CurrentTheme = themeName
+    local t = Themes[themeName]
+
+    MainFrame.BackgroundColor3 = t.Background
+    TopBar.BackgroundColor3 = t.Sidebar
+    TopCornerFix.BackgroundColor3 = t.Sidebar
+    Icon.TextColor3 = t.Primary
+    TitleLabel.TextColor3 = t.TextMain
+    Sidebar.BackgroundColor3 = t.Sidebar
+    MinimizedBar.BackgroundColor3 = t.CardBg
+    MinimizedBar.TextColor3 = t.Primary
+
+    WelcomeText.TextColor3 = t.TextMain
+    HomeBanner.BackgroundColor3 = t.CardBg
+    ProfileCard.BackgroundColor3 = t.CardBg
+    InstructionBanner.BackgroundColor3 = t.CardBg
+    InstructionText.TextColor3 = t.TextMuted
+    ExpirationCard.BackgroundColor3 = t.CardBg
+    ExpirationTitle.TextColor3 = t.TextMain
+    ExpirationTimerLabel.TextColor3 = t.Primary
+    ThemeContainer.BackgroundColor3 = t.CardBg
+    ThemeLabel.TextColor3 = t.TextMain
+end
+
+local themeList = {"PinkFade", "White", "Yellow", "Blue", "Green", "Red", "Purple", "Black"}
+for _, themeName in ipairs(themeList) do
+    local tBtn = Instance.new("TextButton")
+    tBtn.Size = UDim2.new(0, 65, 0, 32)
+    tBtn.BackgroundColor3 = Themes[themeName].CardBg
+    tBtn.BorderSizePixel = 0
+    tBtn.Text = themeName == "PinkFade" and "Pink" or themeName
+    tBtn.TextColor3 = Themes[themeName].Primary
+    tBtn.Font = PixelFont
+    tBtn.TextSize = 10
+    tBtn.Parent = ThemeGrid
+
+    local tBtnCorner = Instance.new("UICorner")
+    tBtnCorner.CornerRadius = UDim.new(0, 6)
+    tBtnCorner.Parent = tBtn
+
+    local tBtnStroke = Instance.new("UIStroke")
+    tBtnStroke.Color = Themes[themeName].Primary
+    tBtnStroke.Transparency = 0.5
+    tBtnStroke.Thickness = 1
+    tBtnStroke.Parent = tBtn
+
+    tBtn.MouseButton1Click:Connect(function()
+        ApplyTheme(themeName)
+    end)
+end
+
+-- Reusable UI Toggle Factory
+local function CreateToggle(keyName, parent, text, callback)
+    local ToggleContainer = Instance.new("Frame")
+    ToggleContainer.Size = UDim2.new(1, -30, 0, 42)
+    ToggleContainer.BackgroundColor3 = Themes[CurrentTheme].CardBg
+    ToggleContainer.BorderSizePixel = 0
+    ToggleContainer.Parent = parent
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = ToggleContainer
+
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, -65, 1, 0)
+    Label.Position = UDim2.new(0, 12, 0, 0)
+    Label.BackgroundTransparency = 1
+    Label.Text = text
+    Label.TextColor3 = Themes[CurrentTheme].TextMain
+    Label.Font = PixelFont
+    Label.TextSize = 11
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = ToggleContainer
+
+    local SwitchBg = Instance.new("Frame")
+    SwitchBg.Size = UDim2.new(0, 38, 0, 20)
+    SwitchBg.Position = UDim2.new(1, -48, 0.5, -10)
+    SwitchBg.BackgroundColor3 = Color3.fromRGB(70, 45, 60)
+    SwitchBg.Parent = ToggleContainer
+
+    local switchBgCorner = Instance.new("UICorner")
+    switchBgCorner.CornerRadius = UDim.new(1, 0)
+    switchBgCorner.Parent = SwitchBg
+
+    local Indicator = Instance.new("Frame")
+    Indicator.Size = UDim2.new(0, 16, 0, 16)
+    Indicator.Position = UDim2.new(0, 2, 0.5, -8)
+    Indicator.BackgroundColor3 = Color3.fromRGB(255, 220, 230)
+    Indicator.Parent = SwitchBg
+
+    local indicatorCorner = Instance.new("UICorner")
+    indicatorCorner.CornerRadius = UDim.new(1, 0)
+    indicatorCorner.Parent = Indicator
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 1, 0)
+    btn.BackgroundTransparency = 1
+    btn.Text = ""
+    btn.Parent = ToggleContainer
+
+    local toggled = false
+
+    local function setVisualState(state, suppressCallback)
+        toggled = state
+        if toggled then
+            TweenService:Create(Indicator, TweenInfo.new(0.2), {Position = UDim2.new(1, -18, 0.5, -8), BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+            TweenService:Create(SwitchBg, TweenInfo.new(0.2), {BackgroundColor3 = Themes[CurrentTheme].Primary}):Play()
+        else
+            TweenService:Create(Indicator, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0.5, -8), BackgroundColor3 = Color3.fromRGB(255, 220, 230)}):Play()
+            TweenService:Create(SwitchBg, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(70, 45, 60)}):Play()
+        end
+        if not suppressCallback then
+            callback(toggled)
+        end
+    end
+
+    btn.MouseButton1Click:Connect(function()
+        setVisualState(not toggled)
+    end)
+
+    if keyName then
+        ToggleSetters[keyName] = function(state)
+            setVisualState(state, true)
+        end
+    end
+end
+
+-- Helper function to make floating status pills draggable
+local function MakeDraggablePill(frame)
+    local dragging, dragInput, dragStart, startPos
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input == dragInput then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+-- Auto Flick System
+local AutoFlickEnabled = false
+local AutoFlickStatusGui = nil
+local isFlicking = false
+
+local function DestroyAutoFlickPillGui()
+    if AutoFlickStatusGui then
+        AutoFlickStatusGui:Destroy()
+        AutoFlickStatusGui = nil
+    end
+end
+
+local function CreateAutoFlickPillGui()
+    if AutoFlickStatusGui then return end
+
+    AutoFlickStatusGui = Instance.new("ScreenGui")
+    AutoFlickStatusGui.Name = "AutoFlickStatusGui"
+    AutoFlickStatusGui.ResetOnSpawn = false
+    AutoFlickStatusGui.Parent = ParentTarget
+
+    local NotifHolder = Instance.new("Frame")
+    NotifHolder.Name = "NotifHolder"
+    NotifHolder.Size = UDim2.new(0, 230, 0, 150)
+    NotifHolder.Position = UDim2.new(0.5, -115, 0.32, 0)
+    NotifHolder.BackgroundTransparency = 1
+    NotifHolder.Parent = AutoFlickStatusGui
+
+    local StatusFrame = Instance.new("Frame")
+    StatusFrame.Name = "StatusFrame"
+    StatusFrame.Size = UDim2.new(0, 230, 0, 36)
+    StatusFrame.Position = UDim2.new(0.5, -115, 0.24, 0)
+    StatusFrame.BackgroundColor3 = Themes[CurrentTheme].CardBg
+    StatusFrame.BackgroundTransparency = 0.2
+    StatusFrame.BorderSizePixel = 0
+    StatusFrame.Parent = AutoFlickStatusGui
+
+    MakeDraggablePill(StatusFrame)
+
+    local StatusCorner = Instance.new("UICorner")
+    StatusCorner.CornerRadius = UDim.new(1, 0)
+    StatusCorner.Parent = StatusFrame
+
+    local StatusLabel = Instance.new("TextLabel")
+    StatusLabel.Name = "StatusLabel"
+    StatusLabel.Size = UDim2.new(1, -55, 1, 0)
+    StatusLabel.Position = UDim2.new(0, 12, 0, 0)
+    StatusLabel.BackgroundTransparency = 1
+    StatusLabel.Text = "Auto Flick [on]"
+    StatusLabel.TextColor3 = Themes[CurrentTheme].Primary
+    StatusLabel.Font = PixelFont
+    StatusLabel.TextSize = 10
+    StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    StatusLabel.Parent = StatusFrame
+
+    local TogglePillBtn = Instance.new("TextButton")
+    TogglePillBtn.Size = UDim2.new(0, 45, 0, 24)
+    TogglePillBtn.Position = UDim2.new(1, -50, 0.5, -12)
+    TogglePillBtn.BackgroundColor3 = Themes[CurrentTheme].Primary
+    TogglePillBtn.BorderSizePixel = 0
+    TogglePillBtn.Text = "ON"
+    TogglePillBtn.TextColor3 = Themes[CurrentTheme].Background
+    TogglePillBtn.Font = PixelFont
+    TogglePillBtn.TextSize = 10
+    TogglePillBtn.Parent = StatusFrame
+
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(1, 0)
+    BtnCorner.Parent = TogglePillBtn
+
+    TogglePillBtn.MouseButton1Click:Connect(function()
+        AutoFlickEnabled = not AutoFlickEnabled
+        if AutoFlickEnabled then
+            TogglePillBtn.Text = "ON"
+            TogglePillBtn.BackgroundColor3 = Themes[CurrentTheme].Primary
+            StatusLabel.Text = "Auto Flick [on]"
+        else
+            TogglePillBtn.Text = "OFF"
+            TogglePillBtn.BackgroundColor3 = Color3.fromRGB(70, 45, 60)
+            StatusLabel.Text = "Auto Flick [off]"
+        end
+        if ToggleSetters["AutoFlick"] then
+            ToggleSetters["AutoFlick"](AutoFlickEnabled)
+        end
+    end)
+end
+
+local function showFlickNotification(playerName)
+    if not AutoFlickStatusGui or not AutoFlickStatusGui:FindFirstChild("NotifHolder") then return end
+    local notifHolder = AutoFlickStatusGui.NotifHolder
+
+    local NotifFrame = Instance.new("Frame")
+    NotifFrame.Size = UDim2.new(1, 0, 0, 28)
+    NotifFrame.Position = UDim2.new(0, 0, 0, -35)
+    NotifFrame.BackgroundColor3 = Themes[CurrentTheme].CardBg
+    NotifFrame.BackgroundTransparency = 0.3
+    NotifFrame.BorderSizePixel = 0
+    NotifFrame.Parent = notifHolder
+
+    local NotifCorner = Instance.new("UICorner")
+    NotifCorner.CornerRadius = UDim.new(0, 6)
+    NotifCorner.Parent = NotifFrame
+
+    local NotifText = Instance.new("TextLabel")
+    NotifText.Size = UDim2.new(1, 0, 1, 0)
+    NotifText.BackgroundTransparency = 1
+    NotifText.Text = "Flicked: " .. playerName
+    NotifText.TextColor3 = Themes[CurrentTheme].TextMain
+    NotifText.Font = PixelFont
+    NotifText.TextSize = 10
+    NotifText.Parent = NotifFrame
+
+    TweenService:Create(NotifFrame, TweenInfo.new(0.3), {Position = UDim2.new(0, 0, 0, 0)}):Play()
+
+    task.delay(1.5, function()
+        if NotifFrame and NotifFrame.Parent then
+            local t1 = TweenService:Create(NotifFrame, TweenInfo.new(0.3), {BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, -15)})
+            t1:Play()
+            t1.Completed:Wait()
+            NotifFrame:Destroy()
+        end
+    end)
+end
+
+local lastTouchTimes = {}
+local touchCooldown = 1
+
+RunService.Stepped:Connect(function()
+    if not AutoFlickEnabled or isFlicking then return end
+
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local pRoot = p.Character:FindFirstChild("HumanoidRootPart")
+            if pRoot then
+                local dist = (hrp.Position - pRoot.Position).Magnitude
+                if dist <= 5 then
+                    local currentTime = os.clock()
+                    if not lastTouchTimes[p] or (currentTime - lastTouchTimes[p] > touchCooldown) then
+                        lastTouchTimes[p] = currentTime
+                        isFlicking = true
+
+                        showFlickNotification(p.Name)
+
+                        task.spawn(function()
+                            local spinSpeed = 120
+                            local accumulatedLeft = 0
+                            while accumulatedLeft < 90 and AutoFlickEnabled do
+                                local dt = RunService.RenderStepped:Wait()
+                                local step = spinSpeed * dt * 60
+                                if accumulatedLeft + step > 90 then
+                                    step = 90 - accumulatedLeft
+                                end
+                                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(step), 0)
+                                accumulatedLeft = accumulatedLeft + step
+                            end
+
+                            local accumulatedRight = 0
+                            while accumulatedRight < 90 and AutoFlickEnabled do
+                                local dt = RunService.RenderStepped:Wait()
+                                local step = spinSpeed * dt * 60
+                                if accumulatedRight + step > 90 then
+                                    step = 90 - accumulatedRight
+                                end
+                                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(-spinSpeed), 0)
+                                accumulatedRight = accumulatedRight + step
+                            end
+                            isFlicking = false
+                        end)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+CreateToggle("AutoFlick", CombatPage, "Auto Flick", function(state)
+    AutoFlickEnabled = state
+    if state then
+        CreateAutoFlickPillGui()
+    else
+        DestroyAutoFlickPillGui()
+    end
+end)
+
+-- Auto Wallhop System
+local AutoWallhopEnabled = false
+local WallhopStatusGui = nil
+
+local function DestroyWallhopPillGui()
+    if WallhopStatusGui then
+        WallhopStatusGui:Destroy()
+        WallhopStatusGui = nil
+    end
+end
+
+local function CreateWallhopPillGui()
+    if WallhopStatusGui then return end
+
+    WallhopStatusGui = Instance.new("ScreenGui")
+    WallhopStatusGui.Name = "WallhopStatusGui"
+    WallhopStatusGui.ResetOnSpawn = false
+    WallhopStatusGui.Parent = ParentTarget
+
+    local StatusFrame = Instance.new("Frame")
+    StatusFrame.Name = "StatusFrame"
+    StatusFrame.Size = UDim2.new(0, 230, 0, 36)
+    StatusFrame.Position = UDim2.new(0.5, -115, 0.18, 0)
+    StatusFrame.BackgroundColor3 = Themes[CurrentTheme].CardBg
+    StatusFrame.BackgroundTransparency = 0.2
+    StatusFrame.BorderSizePixel = 0
+    StatusFrame.Parent = WallhopStatusGui
+
+    MakeDraggablePill(StatusFrame)
+
+    local StatusCorner = Instance.new("UICorner")
+    StatusCorner.CornerRadius = UDim.new(1, 0)
+    StatusCorner.Parent = StatusFrame
+
+    local StatusLabel = Instance.new("TextLabel")
+    StatusLabel.Name = "StatusLabel"
+    StatusLabel.Size = UDim2.new(1, -55, 1, 0)
+    StatusLabel.Position = UDim2.new(0, 12, 0, 0)
+    StatusLabel.BackgroundTransparency = 1
+    StatusLabel.Text = "Auto Wallhop [on]"
+    StatusLabel.TextColor3 = Themes[CurrentTheme].Primary
+    StatusLabel.Font = PixelFont
+    StatusLabel.TextSize = 10
+    StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    StatusLabel.Parent = StatusFrame
+
+    local TogglePillBtn = Instance.new("TextButton")
+    TogglePillBtn.Size = UDim2.new(0, 45, 0, 24)
+    TogglePillBtn.Position = UDim2.new(1, -50, 0.5, -12)
+    TogglePillBtn.BackgroundColor3 = Themes[CurrentTheme].Primary
+    TogglePillBtn.BorderSizePixel = 0
+    TogglePillBtn.Text = "ON"
+    TogglePillBtn.TextColor3 = Themes[CurrentTheme].Background
+    TogglePillBtn.Font = PixelFont
+    TogglePillBtn.TextSize = 10
+    TogglePillBtn.Parent = StatusFrame
+
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(1, 0)
+    BtnCorner.Parent = TogglePillBtn
+
+    TogglePillBtn.MouseButton1Click:Connect(function()
+        AutoWallhopEnabled = not AutoWallhopEnabled
+        if AutoWallhopEnabled then
+            TogglePillBtn.Text = "ON"
+            TogglePillBtn.BackgroundColor3 = Themes[CurrentTheme].Primary
+            StatusLabel.Text = "Auto Wallhop [on]"
+        else
+            TogglePillBtn.Text = "OFF"
+            TogglePillBtn.BackgroundColor3 = Color3.fromRGB(70, 45, 60)
+            StatusLabel.Text = "Auto Wallhop [off]"
+        end
+        if ToggleSetters["AutoWallhop"] then
+            ToggleSetters["AutoWallhop"](AutoWallhopEnabled)
+        end
+    end)
+end
+
+local function isTouchingWall(hrp)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    raycastParams.IgnoreWater = true
+
+    local checkDistance = 2.2
+    local directions = {
+        hrp.CFrame.LookVector,
+        -hrp.CFrame.LookVector,
+        hrp.CFrame.RightVector,
+        -hrp.CFrame.RightVector
+    }
+
+    for _, dir in ipairs(directions) do
+        local result = Workspace:Raycast(hrp.Position, dir * checkDistance, raycastParams)
+        if result and result.Instance and result.Instance.CanCollide and result.Instance.Transparency < 1 then
+            return true
+        end
+    end
+    return false
+end
+
+UserInputService.JumpRequest:Connect(function()
+    if not AutoWallhopEnabled then return end
+
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not humanoid then return end
+
+    if not isTouchingWall(hrp) then return end
+
+    task.spawn(function()
+        local spinSpeed = 90
+        local targetLeft = 90
+        local accumulatedLeft = 0
+        while accumulatedLeft < targetLeft and AutoWallhopEnabled do
+            local dt = RunService.RenderStepped:Wait()
+            local step = spinSpeed * dt * 60
+            if accumulatedLeft + step > targetLeft then
+                step = targetLeft - accumulatedLeft
+            end
+            hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(step), 0)
+            accumulatedLeft = accumulatedLeft + step
+        end
+
+        local targetRight = 90
+        local accumulatedRight = 0
+        while accumulatedRight < targetRight and AutoWallhopEnabled do
+            local dt = RunService.RenderStepped:Wait()
+            local step = spinSpeed * dt * 60
+            if accumulatedRight + step > targetRight then
+                step = targetRight - accumulatedRight
+            end
+            hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(-step), 0)
+            accumulatedRight = accumulatedRight + step
+        end
+    end)
+end)
+
+CreateToggle("AutoWallhop", CombatPage, "Auto Wallhop", function(state)
+    AutoWallhopEnabled = state
+    if state then
+        CreateWallhopPillGui()
+    else
+        DestroyWallhopPillGui()
+    end
+end)
+
+-- Infinite Jump System
+local InfJumpEnabled = false
+local InfJumpConnection
+local lastJumpTime = 0
+local jumpCooldown = 0.25
+
+CreateToggle("InfJump", CombatPage, "Inf Jump", function(state)
+    InfJumpEnabled = state
+
+    if InfJumpEnabled then
+        InfJumpConnection = UserInputService.JumpRequest:Connect(function()
+            if not InfJumpEnabled then return end
+
+            local currentTime = os.clock()
+            if currentTime - lastJumpTime < jumpCooldown then
+                return
+            end
+
+            local char = LocalPlayer.Character
+            if char then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                local rootPart = char:FindFirstChild("HumanoidRootPart")
+                if humanoid and rootPart then
+                    lastJumpTime = currentTime
+                    rootPart.AssemblyLinearVelocity = Vector3.new(rootPart.AssemblyLinearVelocity.X, humanoid.JumpPower, rootPart.AssemblyLinearVelocity.Z)
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end
+        end)
+    else
+        if InfJumpConnection then
+            InfJumpConnection:Disconnect()
+            InfJumpConnection = nil
+        end
+    end
+end)
+
+-- TPWalk System (Slidable Slider UI from 0.0001 to 0.0100)
+local TPWalkEnabled = false
+local TPWalkSpeed = 0.001
+local minTPWalkSpeed = 0.0001
+local maxTPWalkSpeed = 0.0100
+
+CreateToggle("TPWalk", CombatPage, "Enable TPWalk", function(state)
+    TPWalkEnabled = state
+end)
+
+-- TPWalk Slider Container UI Setup
+local TPWalkContainer = Instance.new("Frame")
+TPWalkContainer.Size = UDim2.new(1, -30, 0, 55)
+TPWalkContainer.BackgroundColor3 = Themes[CurrentTheme].CardBg
+TPWalkContainer.BorderSizePixel = 0
+TPWalkContainer.Parent = CombatPage
+
+local TPWalkCorner = Instance.new("UICorner")
+TPWalkCorner.CornerRadius = UDim.new(0, 8)
+TPWalkCorner.Parent = TPWalkContainer
+
+local TPWalkLabel = Instance.new("TextLabel")
+TPWalkLabel.Size = UDim2.new(1, -74, 0, 22)
+TPWalkLabel.Position = UDim2.new(0, 12, 0, 6)
+TPWalkLabel.BackgroundTransparency = 1
+TPWalkLabel.Text = "TPWalk Speed"
+TPWalkLabel.TextColor3 = Themes[CurrentTheme].TextMain
+TPWalkLabel.Font = PixelFont
+TPWalkLabel.TextSize = 11
+TPWalkLabel.TextXAlignment = Enum.TextXAlignment.Left
+TPWalkLabel.Parent = TPWalkContainer
+
+local TPWalkValueLabel = Instance.new("TextLabel")
+TPWalkValueLabel.Size = UDim2.new(0, 70, 0, 22)
+TPWalkValueLabel.Position = UDim2.new(1, -82, 0, 6)
+TPWalkValueLabel.BackgroundTransparency = 1
+TPWalkValueLabel.Text = string.format("%.4f", TPWalkSpeed)
+TPWalkValueLabel.TextColor3 = Themes[CurrentTheme].Primary
+TPWalkValueLabel.Font = PixelFont
+TPWalkValueLabel.TextSize = 10
+TPWalkValueLabel.TextXAlignment = Enum.TextXAlignment.Right
+TPWalkValueLabel.Parent = TPWalkContainer
+
+local TPSliderBar = Instance.new("Frame")
+TPSliderBar.Size = UDim2.new(1, -24, 0, 6)
+TPSliderBar.Position = UDim2.new(0, 12, 0, 36)
+TPSliderBar.BackgroundColor3 = Color3.fromRGB(70, 45, 60)
+TPSliderBar.BorderSizePixel = 0
+TPSliderBar.Parent = TPWalkContainer
+
+local TPSliderBarCorner = Instance.new("UICorner")
+TPSliderBarCorner.CornerRadius = UDim.new(1, 0)
+TPSliderBarCorner.Parent = TPSliderBar
+
+local initialTPPercent = (TPWalkSpeed - minTPWalkSpeed) / (maxTPWalkSpeed - minTPWalkSpeed)
+local TPSliderFill = Instance.new("Frame")
+TPSliderFill.Size = UDim2.new(initialTPPercent, 0, 1, 0)
+TPSliderFill.BackgroundColor3 = Themes[CurrentTheme].Primary
+TPSliderFill.BorderSizePixel = 0
+TPSliderFill.Parent = TPSliderBar
+
+local TPSliderFillCorner = Instance.new("UICorner")
+TPSliderFillCorner.CornerRadius = UDim.new(1, 0)
+TPSliderFillCorner.Parent = TPSliderFill
+
+local TPSliderButton = Instance.new("TextButton")
+TPSliderButton.Size = UDim2.new(1, 20, 1, 14)
+TPSliderButton.Position = UDim2.new(0, -10, 0, -7)
+TPSliderButton.BackgroundTransparency = 1
+TPSliderButton.Text = ""
+TPSliderButton.Parent = TPSliderBar
+
+local tpSliderDragging = false
+
+local function updateTPSlider(input)
+    local pos = UDim2.new(0, math.clamp(input.Position.X - TPSliderBar.AbsolutePosition.X, 0, TPSliderBar.AbsoluteSize.X), 0, 0)
+    local percent = math.clamp(pos.X.Offset / TPSliderBar.AbsoluteSize.X, 0, 1)
+    
+    TPSliderFill.Size = UDim2.new(percent, 0, 1, 0)
+    TPWalkSpeed = minTPWalkSpeed + (percent * (maxTPWalkSpeed - minTPWalkSpeed))
+    
+    TPWalkValueLabel.Text = string.format("%.4f", TPWalkSpeed)
+end
+
+TPSliderButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        tpSliderDragging = true
+        updateTPSlider(input)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        tpSliderDragging = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if tpSliderDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateTPSlider(input)
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if not TPWalkEnabled then return end
+    local char = LocalPlayer.Character
+    if not char then return end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if humanoid and hrp and humanoid.MoveDirection.Magnitude > 0 then
+        local delta = RunService.RenderStepped:Wait()
+        local moveStep = humanoid.MoveDirection * (TPWalkSpeed * 1000) * (delta * 60)
+        hrp.CFrame = hrp.CFrame + moveStep
+    end
+end)
+
+-- Auto Follow & Touch System
+local AutoFollowEnabled = false
+local FollowStatusGui = nil
+
+local function DestroyFollowPillGui()
+    if FollowStatusGui then
+        FollowStatusGui:Destroy()
+        FollowStatusGui = nil
+    end
+end
+
+local function CreateFollowPillGui()
+    if FollowStatusGui then return end
+
+    FollowStatusGui = Instance.new("ScreenGui")
+    FollowStatusGui.Name = "FollowStatusGui"
+    FollowStatusGui.ResetOnSpawn = false
+    FollowStatusGui.Parent = ParentTarget
+
+    local StatusFrame = Instance.new("Frame")
+    StatusFrame.Name = "StatusFrame"
+    StatusFrame.Size = UDim2.new(0, 260, 0, 36)
+    StatusFrame.Position = UDim2.new(0.5, -130, 0.12, 0)
+    StatusFrame.BackgroundColor3 = Themes[CurrentTheme].CardBg
+    StatusFrame.BackgroundTransparency = 0.2
+    StatusFrame.BorderSizePixel = 0
+    StatusFrame.Parent = FollowStatusGui
+
+    MakeDraggablePill(StatusFrame)
+
+    local StatusCorner = Instance.new("UICorner")
+    StatusCorner.CornerRadius = UDim.new(1, 0)
+    StatusCorner.Parent = StatusFrame
+
+    local StatusLabel = Instance.new("TextLabel")
+    StatusLabel.Name = "StatusLabel"
+    StatusLabel.Size = UDim2.new(1, -95, 1, 0)
+    StatusLabel.Position = UDim2.new(0, 12, 0, 0)
+    StatusLabel.BackgroundTransparency = 1
+    StatusLabel.Text = "Auto Follow [on]"
+    StatusLabel.TextColor3 = Themes[CurrentTheme].Primary
+    StatusLabel.Font = PixelFont
+    StatusLabel.TextSize = 10
+    StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    StatusLabel.Parent = StatusFrame
+
+    local TogglePillBtn = Instance.new("TextButton")
+    TogglePillBtn.Size = UDim2.new(0, 45, 0, 24)
+    TogglePillBtn.Position = UDim2.new(1, -50, 0.5, -12)
+    TogglePillBtn.BackgroundColor3 = Themes[CurrentTheme].Primary
+    TogglePillBtn.BorderSizePixel = 0
+    TogglePillBtn.Text = "ON"
+    TogglePillBtn.TextColor3 = Themes[CurrentTheme].Background
+    TogglePillBtn.Font = PixelFont
+    TogglePillBtn.TextSize = 10
+    TogglePillBtn.Parent = StatusFrame
+
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(1, 0)
+    BtnCorner.Parent = TogglePillBtn
+
+    TogglePillBtn.MouseButton1Click:Connect(function()
+        AutoFollowEnabled = not AutoFollowEnabled
+        if AutoFollowEnabled then
+            TogglePillBtn.Text = "ON"
+            TogglePillBtn.BackgroundColor3 = Themes[CurrentTheme].Primary
+            StatusLabel.Text = "Auto Follow [on]"
+        else
+            TogglePillBtn.Text = "OFF"
+            TogglePillBtn.BackgroundColor3 = Color3.fromRGB(70, 45, 60)
+            StatusLabel.Text = "Auto Follow [off]"
+        end
+        if ToggleSetters["AutoFollow"] then
+            ToggleSetters["AutoFollow"](AutoFollowEnabled)
+        end
+    end)
+end
+
+CreateToggle("AutoFollow", CombatPage, "Enable Auto Follow & Touch", function(state)
+    AutoFollowEnabled = state
+    if state then
+        CreateFollowPillGui()
+    else
+        DestroyFollowPillGui()
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if not AutoFollowEnabled or not FollowStatusGui or not FollowStatusGui:FindFirstChild("StatusFrame") then return end
+
+    local StatusFrame = FollowStatusGui.StatusFrame
+    local StatusLabel = StatusFrame:FindFirstChild("StatusLabel")
+    if not StatusLabel then return end
+
+    local char = LocalPlayer.Character
+    if not char then return end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not hrp then return end
+
+    if humanoid.MoveDirection.Magnitude > 0.05 then
+        StatusLabel.Text = "Follow: Paused (Input)"
+        return
+    end
+
+    local targetPlr = nil
+    local shortestDist = math.huge
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local dist = (hrp.Position - p.Character.HumanoidRootPart.Position).Magnitude
+            if dist < shortestDist then
+                shortestDist = dist
+                targetPlr = p
+            end
+        end
+    end
+
+    if targetPlr and targetPlr.Character then
+        local targetHrp = targetPlr.Character:FindFirstChild("HumanoidRootPart")
+        if targetHrp then
+            StatusLabel.Text = "Touching: " .. targetPlr.Name
+            humanoid:MoveTo(targetHrp.Position)
+        else
+            StatusLabel.Text = "Follow: Missing Root"
+        end
+    else
+        StatusLabel.Text = "Follow: Searching..."
+    end
+end)
+
+-- Hitbox Expander (R6 Only with Slidable Slider UI, Max 12)
+local HitboxEnabled = false
+local HitboxSize = 5
+local maxHitboxSize = 12
+local originalPartSizes = {}
+
+CreateToggle("Hitbox", CombatPage, "Enable Hitbox", function(state)
+    HitboxEnabled = state
+    updateAllHitboxes()
+end)
+
+-- Hitbox Slider Container UI Setup
+local HitboxContainer = Instance.new("Frame")
+HitboxContainer.Size = UDim2.new(1, -30, 0, 55)
+HitboxContainer.BackgroundColor3 = Themes[CurrentTheme].CardBg
+HitboxContainer.BorderSizePixel = 0
+HitboxContainer.Parent = CombatPage
+
+local HitboxCorner = Instance.new("UICorner")
+HitboxCorner.CornerRadius = UDim.new(0, 8)
+HitboxCorner.Parent = HitboxContainer
+
+local HitboxLabel = Instance.new("TextLabel")
+HitboxLabel.Size = UDim2.new(1, -24, 0, 22)
+HitboxLabel.Position = UDim2.new(0, 12, 0, 6)
+HitboxLabel.BackgroundTransparency = 1
+HitboxLabel.Text = "Hitbox Size"
+HitboxLabel.TextColor3 = Themes[CurrentTheme].TextMain
+HitboxLabel.Font = PixelFont
+HitboxLabel.TextSize = 11
+HitboxLabel.TextXAlignment = Enum.TextXAlignment.Left
+HitboxLabel.Parent = HitboxContainer
+
+local HitboxValueLabel = Instance.new("TextLabel")
+HitboxValueLabel.Size = UDim2.new(0, 40, 0, 22)
+HitboxValueLabel.Position = UDim2.new(1, -52, 0, 6)
+HitboxValueLabel.BackgroundTransparency = 1
+HitboxValueLabel.Text = tostring(HitboxSize)
+HitboxValueLabel.TextColor3 = Themes[CurrentTheme].Primary
+HitboxValueLabel.Font = PixelFont
+HitboxValueLabel.TextSize = 11
+HitboxValueLabel.TextXAlignment = Enum.TextXAlignment.Right
+HitboxValueLabel.Parent = HitboxContainer
+
+local SliderBar = Instance.new("Frame")
+SliderBar.Size = UDim2.new(1, -24, 0, 6)
+SliderBar.Position = UDim2.new(0, 12, 0, 36)
+SliderBar.BackgroundColor3 = Color3.fromRGB(70, 45, 60)
+SliderBar.BorderSizePixel = 0
+SliderBar.Parent = HitboxContainer
+
+local SliderBarCorner = Instance.new("UICorner")
+SliderBarCorner.CornerRadius = UDim.new(1, 0)
+SliderBarCorner.Parent = SliderBar
+
+local SliderFill = Instance.new("Frame")
+SliderFill.Size = UDim2.new(HitboxSize / maxHitboxSize, 0, 1, 0)
+SliderFill.BackgroundColor3 = Themes[CurrentTheme].Primary
+SliderFill.BorderSizePixel = 0
+SliderFill.Parent = SliderBar
+
+local SliderFillCorner = Instance.new("UICorner")
+SliderFillCorner.CornerRadius = UDim.new(1, 0)
+SliderFillCorner.Parent = SliderFill
+
+local SliderButton = Instance.new("TextButton")
+SliderButton.Size = UDim2.new(1, 20, 1, 14)
+SliderButton.Position = UDim2.new(0, -10, 0, -7)
+SliderButton.BackgroundTransparency = 1
+SliderButton.Text = ""
+SliderButton.Parent = SliderBar
+
+local function isR6(character)
+    return character:FindFirstChild("Torso") ~= nil and character:FindFirstChild("HumanoidRootPart") ~= nil
+end
+
+local function applyHitboxToPlayer(p)
+    if p == LocalPlayer then return end
+    local char = p.Character
+    if not char or not isR6(char) then return end
+
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local torso = char:FindFirstChild("Torso")
+
+    if hrp then
+        if not originalPartSizes[hrp] then
+            originalPartSizes[hrp] = {Size = hrp.Size, Transparency = hrp.Transparency, CanCollide = hrp.CanCollide}
+        end
+        hrp.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+        hrp.Transparency = 1
+        hrp.CanCollide = false
+    end
+
+    if torso then
+        if not originalPartSizes[torso] then
+            originalPartSizes[torso] = {Size = torso.Size, Transparency = torso.Transparency, CanCollide = torso.CanCollide}
+        end
+        torso.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+        torso.Transparency = 1
+        torso.CanCollide = false
+    end
+end
+
+local function resetHitboxForPlayer(p)
+    local char = p.Character
+    if not char then return end
+
+    for _, partName in ipairs({"HumanoidRootPart", "Torso"}) do
+        local part = char:FindFirstChild(partName)
+        if part and originalPartSizes[part] then
+            part.Size = originalPartSizes[part].Size
+            part.Transparency = originalPartSizes[part].Transparency
+            part.CanCollide = originalPartSizes[part].CanCollide
+            originalPartSizes[part] = nil
+        end
+    end
+end
+
+local function updateAllHitboxes()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if HitboxEnabled then
+            applyHitboxToPlayer(p)
+        else
+            resetHitboxForPlayer(p)
+        end
+    end
+end
+
+-- Slider Drag Implementation
+local sliderDragging = false
+
+local function updateSlider(input)
+    local pos = UDim2.new(0, math.clamp(input.Position.X - SliderBar.AbsolutePosition.X, 0, SliderBar.AbsoluteSize.X), 0, 0)
+    local percent = math.clamp(pos.X.Offset / SliderBar.AbsoluteSize.X, 0, 1)
+    
+    SliderFill.Size = UDim2.new(percent, 0, 1, 0)
+    HitboxSize = math.floor(percent * maxHitboxSize)
+    if HitboxSize < 1 then HitboxSize = 1 end
+    
+    HitboxValueLabel.Text = tostring(HitboxSize)
+    
+    if HitboxEnabled then
+        updateAllHitboxes()
+    end
+end
+
+SliderButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        sliderDragging = true
+        updateSlider(input)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        sliderDragging = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if sliderDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateSlider(input)
+    end
+end)
+
+RunService.Stepped:Connect(function()
+    if not HitboxEnabled then return end
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            if isR6(p.Character) then
+                applyHitboxToPlayer(p)
+            end
+
+            for _, part in ipairs(p.Character:GetChildren()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+-- ESP Highlight Module
+local ESPEnabled = false
+local ESPFolder = Instance.new("Folder")
+ESPFolder.Name = "ESPFolder"
+ESPFolder.Parent = ScreenGui
+
+local activeHighlights = {}
+
+local function createESP(character)
+    if activeHighlights[character] then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Adornee = character
+    highlight.FillColor = Themes[CurrentTheme].Primary
+    highlight.FillTransparency = 0.5
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.OutlineTransparency = 0
+    highlight.Parent = ESPFolder
+
+    activeHighlights[character] = highlight
+end
+
+local function removeESP(character)
+    if activeHighlights[character] then
+        activeHighlights[character]:Destroy()
+        activeHighlights[character] = nil
+    end
+end
+
+local function setupPlayerESP(player)
+    if player == LocalPlayer then return end
+
+    player.CharacterAdded:Connect(function(char)
+        if ESPEnabled then
+            createESP(char)
+        end
+    end)
+
+    player.CharacterRemoving:Connect(function(char)
+        removeESP(char)
+    end)
+
+    if player.Character and ESPEnabled then
+        createESP(player.Character)
+    end
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+    setupPlayerESP(p)
+end
+
+Players.PlayerAdded:Connect(setupPlayerESP)
+
+CreateToggle("ESP", VisualPage, "Enable ESP", function(state)
+    ESPEnabled = state
+    if ESPEnabled then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character then
+                createESP(p.Character)
+            end
+        end
+    else
+        for char, _ in pairs(activeHighlights) do
+            removeESP(char)
+        end
+    end
+end)
+
+-- FPS Booster & Proximity Culling Module
+local FPSBoosterEnabled = false
+local storedProperties = {}
+local cullingDistance = 80
+
+task.spawn(function()
+    while true do
+        task.wait(0.15)
+        if FPSBoosterEnabled then
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local myPos = hrp.Position
+                for _, part in ipairs(Workspace:GetDescendants()) do
+                    if part:IsA("BasePart") and not part:IsDescendantOf(char) then
+                        local dist = (part.Position - myPos).Magnitude
+                        if dist > cullingDistance then
+                            part.LocalTransparencyModifier = 1
+                        else
+                            part.LocalTransparencyModifier = 0
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+CreateToggle("FPSBooster", VisualPage, "Enable FPS Booster", function(state)
+    FPSBoosterEnabled = state
+
+    if FPSBoosterEnabled then
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("Decal") or obj:IsA("Texture") then
+                storedProperties[obj] = obj.Transparency
+                obj.Transparency = 1
+            elseif obj:IsA("SpecialMesh") then
+                storedProperties[obj] = obj.TextureId
+                obj.TextureId = ""
+            elseif obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
+                storedProperties[obj] = obj.Enabled
+                obj.Enabled = false
+            end
+        end
+
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Character then
+                local head = p.Character:FindFirstChild("Head")
+                if head then
+                    for _, child in ipairs(head:GetChildren()) do
+                        if child:IsA("Decal") and child.Name == "face" then
+                            storedProperties[child] = child.Transparency
+                            child.Transparency = 1
+                        end
+                    end
+                end
+            end
+        end
+
+        storedProperties["Ambient"] = Lighting.Ambient
+        storedProperties["OutdoorAmbient"] = Lighting.OutdoorAmbient
+        storedProperties["Brightness"] = Lighting.Brightness
+
+        Lighting.Ambient = Color3.fromRGB(80, 60, 75)
+        Lighting.OutdoorAmbient = Color3.fromRGB(80, 60, 75)
+        Lighting.Brightness = 1.5
+    else
+        for _, part in ipairs(Workspace:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.LocalTransparencyModifier = 0
+            end
+        end
+
+        for obj, prop in pairs(storedProperties) do
+            if typeof(obj) == "Instance" and obj.Parent then
+                if obj:IsA("Decal") or obj:IsA("Texture") then
+                    obj.Transparency = prop
+                elseif obj:IsA("SpecialMesh") then
+                    obj.TextureId = prop
+                elseif obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
+                    obj.Enabled = prop
+                end
+            end
+        end
+
+        if storedProperties["Ambient"] then
+            Lighting.Ambient = storedProperties["Ambient"]
+            Lighting.OutdoorAmbient = storedProperties["OutdoorAmbient"]
+            Lighting.Brightness = storedProperties["Brightness"]
+        end
+
+        storedProperties = {}
+    end
+end)
+
+-- FPS and Ping Pill GUI Display
+local FpsPingGui = Instance.new("ScreenGui")
+FpsPingGui.Name = "FpsPingGui"
+FpsPingGui.ResetOnSpawn = false
+FpsPingGui.Enabled = false
+FpsPingGui.Parent = ParentTarget
+
+local PillFrame = Instance.new("Frame")
+PillFrame.Size = UDim2.new(0, 180, 0, 36)
+PillFrame.Position = UDim2.new(0, 20, 0, 20)
+PillFrame.BackgroundColor3 = Themes[CurrentTheme].CardBg
+PillFrame.BackgroundTransparency = 0.2
+PillFrame.BorderSizePixel = 0
+PillFrame.Parent = FpsPingGui
+
+MakeDraggablePill(PillFrame)
+
+ThePillLabel = Instance.new("TextLabel")
+ThePillLabel.Name = "PillLabel"
+ThePillLabel.Size = UDim2.new(1, 0, 1, 0)
+ThePillLabel.BackgroundTransparency = 1
+ThePillLabel.Text = "FPS: -- | Ping: -- ms"
+ThePillLabel.TextColor3 = Themes[CurrentTheme].Primary
+ThePillLabel.Font = PixelFont
+ThePillLabel.TextSize = 10
+ThePillLabel.Parent = PillFrame
+
+local frameCount = 0
+local lastUpdate = os.clock()
+local currentFps = 60
+
+RunService.RenderStepped:Connect(function()
+    frameCount = frameCount + 1
+    local now = os.clock()
+    if now - lastUpdate >= 1 then
+        currentFps = math.floor(frameCount / (now - lastUpdate))
+        frameCount = 0
+        lastUpdate = now
+
+        if FpsPingGui.Enabled then
+            local ping = 0
+            pcall(function()
+                ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+            end)
+            ThePillLabel.Text = string.format("FPS: %d | Ping: %d ms", currentFps, ping)
+        end
+    end
+end)
+
+CreateToggle("FpsPing", VisualPage, "Show FPS & Ping", function(state)
+    FpsPingGui.Enabled = state
+end)
+
+-- ====================================================================
+-- Execute Intro Typing Sequence & Fade into Main GUI
+-- ====================================================================
+task.spawn(function()
+    local targetMessage = "Welcome To MeowHub"
+    for i = 1, #targetMessage do
+        IntroText.Text = string.sub(targetMessage, 1, i) .. "_"
+        task.wait(0.06)
+    end
+    -- Blink cursor effect
+    for i = 1, 3 do
+        IntroText.Text = targetMessage
+        task.wait(0.15)
+        IntroText.Text = targetMessage .. "_"
+        task.wait(0.15)
+    end
+    IntroText.Text = targetMessage
+
+    task.wait(0.4)
+
+    -- Fade out Intro
+    local fadeOut = TweenService:Create(
+        IntroFrame,
+        TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {BackgroundTransparency = 1}
+    )
+    fadeOut:Play()
+    TweenService:Create(IntroText, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+    TweenService:Create(IntroIcon, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+    TweenService:Create(IntroStroke, TweenInfo.new(0.5), {Transparency = 1}):Play()
+    
+    fadeOut.Completed:Wait()
+    IntroGui:Destroy()
+
+    -- Reveal Main Window
+    ScreenGui.Enabled = true
+    MainFrame.Size = UDim2.new(0, 600, 0, 350)
+    MainFrame.BackgroundTransparency = 1
+    
+    local popIn = TweenService:Create(
+        MainFrame,
+        TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+        {
+            Size = UDim2.new(0, 640, 0, 380),
+            BackgroundTransparency = 0.05
+        }
+    )
+    popIn:Play()
+end)
