@@ -1,0 +1,484 @@
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+player.CharacterAdded:Connect(function(newChar)
+	character = newChar
+end)
+
+-- ScreenGui Setup (Protected Parent if possible)
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "KhubHubUltimate1M"
+screenGui.ResetOnSpawn = false
+local success, err = pcall(function()
+	screenGui.Parent = CoreGui
+end)
+if not success then
+	screenGui.Parent = player:WaitForChild("PlayerGui")
+end
+
+-- Main Window Frame (Ultra-detailed modern dark theme with smooth rounded corners)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 520, 0, 320)
+mainFrame.Position = UDim2.new(0.5, -260, 0.5, -160)
+mainFrame.BackgroundColor3 = Color3.fromRGB(14, 12, 18)
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 10)
+mainCorner.Parent = mainFrame
+
+-- Ambient Inner Glow / Shadow Effect
+local ambientGlow = Instance.new("UIStroke")
+ambientGlow.Color = Color3.fromRGB(120, 30, 200)
+ambientGlow.Transparency = 0.6
+ambientGlow.Thickness = 6
+ambientGlow.Parent = mainFrame
+
+-- Neon Purple Fade Outer Border (UIStroke + UIGradient)
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Thickness = 2
+mainStroke.Parent = mainFrame
+
+local strokeGradient = Instance.new("UIGradient")
+strokeGradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 100, 255)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(180, 50, 230)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(90, 10, 160))
+})
+strokeGradient.Rotation = 45
+strokeGradient.Parent = mainStroke
+
+-- Premium Glassmorphism Background Accent Overlay
+local glassOverlay = Instance.new("Frame")
+glassOverlay.Size = UDim2.new(1, 0, 1, 0)
+glassOverlay.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+glassOverlay.BackgroundTransparency = 0.97
+glassOverlay.BorderSizePixel = 0
+glassOverlay.Parent = mainFrame
+
+local glassCorner = Instance.new("UICorner")
+glassCorner.CornerRadius = UDim.new(0, 10)
+glassCorner.Parent = glassOverlay
+
+-- Draggable Window Logic (Fluid touch & mouse support)
+local dragging, dragInput, dragStart, startPos
+
+mainFrame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = mainFrame.Position
+		
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+mainFrame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		local delta = input.Position - dragStart
+		mainFrame.Position = UDim2.new(
+			startPos.X.Scale, 
+			startPos.X.Offset + delta.X, 
+			startPos.Y.Scale, 
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+-- Left Sidebar Hub (Darker tone with fine separation stroke)
+local sidebar = Instance.new("Frame")
+sidebar.Size = UDim2.new(0, 70, 1, 0)
+sidebar.BackgroundColor3 = Color3.fromRGB(10, 8, 14)
+sidebar.BorderSizePixel = 0
+sidebar.Parent = mainFrame
+
+local sidebarCorner = Instance.new("UICorner")
+sidebarCorner.CornerRadius = UDim.new(0, 10)
+sidebarCorner.Parent = sidebar
+
+local sidebarStroke = Instance.new("UIStroke")
+sidebarStroke.Color = Color3.fromRGB(50, 20, 80)
+sidebarStroke.Thickness = 1
+sidebarStroke.Parent = sidebar
+
+-- Big Neon Heart Logo: ♡
+local bigLogo = Instance.new("TextLabel")
+bigLogo.Size = UDim2.new(1, 0, 0, 50)
+bigLogo.Position = UDim2.new(0, 0, 0, 10)
+bigLogo.BackgroundTransparency = 1
+bigLogo.Font = Enum.Font.Code
+bigLogo.Text = "♡"
+bigLogo.TextColor3 = Color3.fromRGB(240, 140, 255)
+bigLogo.TextSize = 32
+bigLogo.Parent = sidebar
+
+local logoGlow = Instance.new("UIStroke")
+logoGlow.Color = Color3.fromRGB(255, 100, 255)
+logoGlow.Thickness = 1
+logoGlow.Transparency = 0.2
+logoGlow.Parent = bigLogo
+
+-- ImageLabel below Logo (ID: 8652665149) with micro frame container
+local imgContainer = Instance.new("Frame")
+imgContainer.Size = UDim2.new(0, 38, 0, 38)
+imgContainer.Position = UDim2.new(0.5, -19, 0, 68)
+imgContainer.BackgroundColor3 = Color3.fromRGB(22, 14, 35)
+imgContainer.BorderSizePixel = 0
+imgContainer.Parent = sidebar
+
+local imgContainerCorner = Instance.new("UICorner")
+imgContainerCorner.CornerRadius = UDim.new(0, 8)
+imgContainerCorner.Parent = imgContainer
+
+local imgContainerStroke = Instance.new("UIStroke")
+imgContainerStroke.Color = Color3.fromRGB(140, 50, 210)
+imgContainerStroke.Thickness = 1
+imgContainerStroke.Parent = imgContainer
+
+local imageLabel = Instance.new("ImageLabel")
+imageLabel.Size = UDim2.new(0, 28, 0, 28)
+imageLabel.Position = UDim2.new(0.5, -14, 0.5, -14)
+imageLabel.BackgroundTransparency = 1
+imageLabel.Image = "rbxassetid://8652665149"
+imageLabel.Parent = imgContainer
+
+-- Top Bar Header Section
+local topBar = Instance.new("Frame")
+topBar.Size = UDim2.new(1, -70, 0, 40)
+topBar.Position = UDim2.new(0, 70, 0, 0)
+topBar.BackgroundColor3 = Color3.fromRGB(18, 14, 24)
+topBar.BorderSizePixel = 0
+topBar.Parent = mainFrame
+
+-- Purple Background Back Panel for Title [♡K-Hub♡]
+local titleBg = Instance.new("Frame")
+titleBg.Size = UDim2.new(0, 150, 0, 26)
+titleBg.Position = UDim2.new(0, 12, 0.5, -13)
+titleBg.BackgroundColor3 = Color3.fromRGB(45, 15, 75)
+titleBg.BorderSizePixel = 0
+titleBg.Parent = topBar
+
+local titleBgCorner = Instance.new("UICorner")
+titleBgCorner.CornerRadius = UDim.new(0, 6)
+titleBgCorner.Parent = titleBg
+
+local titleBgStroke = Instance.new("UIStroke")
+titleBgStroke.Color = Color3.fromRGB(180, 70, 255)
+titleBgStroke.Thickness = 1.2
+titleBgStroke.Parent = titleBg
+
+-- Pixelated Title Text: [♡K-Hub♡]
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 1, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Font = Enum.Font.Code
+titleLabel.Text = "[♡K-Hub♡]"
+titleLabel.TextColor3 = Color3.fromRGB(255, 180, 255)
+titleLabel.TextSize = 13
+titleLabel.Parent = titleBg
+
+local titleStroke = Instance.new("UIStroke")
+titleStroke.Thickness = 1.2
+titleStroke.Parent = titleLabel
+
+local titleStrokeGradient = Instance.new("UIGradient")
+titleStrokeGradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 120, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(140, 40, 210))
+})
+titleStrokeGradient.Rotation = 45
+titleStrokeGradient.Parent = titleStroke
+
+-- Detailed Status Badge (1M Valuation Edition Tag)
+local badgeLabel = Instance.new("TextLabel")
+badgeLabel.Size = UDim2.new(0, 95, 0, 20)
+badgeLabel.Position = UDim2.new(0, 172, 0.5, -10)
+badgeLabel.BackgroundColor3 = Color3.fromRGB(30, 10, 50)
+badgeLabel.Font = Enum.Font.Code
+badgeLabel.Text = "★ 1M VIP v2.4"
+badgeLabel.TextColor3 = Color3.fromRGB(210, 130, 255)
+badgeLabel.TextSize = 10
+badgeLabel.Parent = topBar
+
+local badgeCorner = Instance.new("UICorner")
+badgeCorner.CornerRadius = UDim.new(0, 4)
+badgeCorner.Parent = badgeLabel
+
+local badgeStroke = Instance.new("UIStroke")
+badgeStroke.Color = Color3.fromRGB(130, 40, 200)
+badgeStroke.Thickness = 1
+badgeStroke.Parent = badgeLabel
+
+-- Exit Button (Sophisticated hover animation)
+local exitButton = Instance.new("TextButton")
+exitButton.Size = UDim2.new(0, 36, 0, 26)
+exitButton.Position = UDim2.new(1, -44, 0.5, -13)
+exitButton.BackgroundColor3 = Color3.fromRGB(40, 12, 65)
+exitButton.BorderSizePixel = 0
+exitButton.Font = Enum.Font.Code
+exitButton.Text = "✕"
+exitButton.TextColor3 = Color3.fromRGB(240, 150, 255)
+exitButton.TextSize = 13
+exitButton.Parent = topBar
+
+local exitCorner = Instance.new("UICorner")
+exitCorner.CornerRadius = UDim.new(0, 6)
+exitCorner.Parent = exitButton
+
+local exitStroke = Instance.new("UIStroke")
+exitStroke.Color = Color3.fromRGB(170, 70, 240)
+exitStroke.Thickness = 1
+exitStroke.Parent = exitButton
+
+-- Small Floating Circle Logo (Hidden initially, appears when minimized) with glowing outline
+local floatingLogo = Instance.new("TextButton")
+floatingLogo.Name = "FloatingLogo"
+floatingLogo.Size = UDim2.new(0, 54, 0, 54)
+floatingLogo.Position = UDim2.new(0, 35, 0.5, -27)
+floatingLogo.BackgroundColor3 = Color3.fromRGB(18, 10, 30)
+floatingLogo.Visible = false
+floatingLogo.Text = "♡"
+floatingLogo.Font = Enum.Font.Code
+floatingLogo.TextColor3 = Color3.fromRGB(255, 160, 255)
+floatingLogo.TextSize = 24
+floatingLogo.AutoButtonColor = false
+floatingLogo.Parent = screenGui
+
+local floatingCorner = Instance.new("UICorner")
+floatingCorner.CornerRadius = UDim.new(1, 0)
+floatingCorner.Parent = floatingLogo
+
+local floatingGlow = Instance.new("UIStroke")
+floatingGlow.Color = Color3.fromRGB(160, 40, 220)
+floatingGlow.Transparency = 0.5
+floatingGlow.Thickness = 4
+floatingGlow.Parent = floatingLogo
+
+local floatingStroke = Instance.new("UIStroke")
+floatingStroke.Thickness = 2
+floatingStroke.Parent = floatingLogo
+
+local floatingStrokeGradient = Instance.new("UIGradient")
+floatingStrokeGradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 100, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 20, 180))
+})
+floatingStrokeGradient.Rotation = 45
+floatingStrokeGradient.Parent = floatingStroke
+
+-- Exit / Open Toggle Logic with Smooth Tween
+local tweenInfoFast = TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+
+exitButton.MouseButton1Click:Connect(function()
+	mainFrame.Visible = false
+	floatingLogo.Visible = true
+	floatingLogo.Size = UDim2.new(0, 0, 0, 0)
+	TweenService:Create(floatingLogo, tweenInfoFast, {Size = UDim2.new(0, 54, 0, 54)}):Play()
+end)
+
+floatingLogo.MouseButton1Click:Connect(function()
+	mainFrame.Visible = true
+	floatingLogo.Visible = false
+end)
+
+-- Draggable Floating Logo Logic
+local floatDragging, floatDragInput, floatDragStart, floatStartPos
+
+floatingLogo.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		floatDragging = true
+		floatDragStart = input.Position
+		floatStartPos = floatingLogo.Position
+		
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				floatDragging = false
+			end
+		end)
+	end
+end)
+
+floatingLogo.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		floatDragInput = input
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if input == floatDragInput and floatDragging then
+		local delta = input.Position - floatDragStart
+		floatingLogo.Position = UDim2.new(
+			floatStartPos.X.Scale, 
+			floatStartPos.X.Offset + delta.X, 
+			floatStartPos.Y.Scale, 
+			floatStartPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+-- Content Container Panel Area
+local container = Instance.new("ScrollingFrame")
+container.Name = "Container"
+container.Size = UDim2.new(1, -82, 1, -52)
+container.Position = UDim2.new(0, 76, 0, 46)
+container.BackgroundTransparency = 1
+container.BorderSizePixel = 0
+container.CanvasSize = UDim2.new(0, 0, 0, 0)
+container.ScrollBarThickness = 3
+container.ScrollBarImageColor3 = Color3.fromRGB(160, 80, 230)
+container.Parent = mainFrame
+
+-- Feature Option Row Background (Ultra-detailed container panel)
+local optionFrame = Instance.new("Frame")
+optionFrame.Size = UDim2.new(1, -16, 0, 48)
+optionFrame.Position = UDim2.new(0, 8, 0, 8)
+optionFrame.BackgroundColor3 = Color3.fromRGB(22, 16, 32)
+optionFrame.BorderSizePixel = 0
+optionFrame.Parent = container
+
+local optionCorner = Instance.new("UICorner")
+optionCorner.CornerRadius = UDim.new(0, 8)
+optionCorner.Parent = optionFrame
+
+local optionStroke = Instance.new("UIStroke")
+optionStroke.Color = Color3.fromRGB(75, 30, 115)
+optionStroke.Thickness = 1
+optionStroke.Parent = optionFrame
+
+-- Feature Icon Indicator Prefix
+local featureIcon = Instance.new("TextLabel")
+featureIcon.Size = UDim2.new(0, 30, 1, 0)
+featureIcon.Position = UDim2.new(0, 8, 0, 0)
+featureIcon.BackgroundTransparency = 1
+featureIcon.Font = Enum.Font.Code
+featureIcon.Text = "♧"
+featureIcon.TextColor3 = Color3.fromRGB(210, 120, 255)
+featureIcon.TextSize = 15
+featureIcon.Parent = optionFrame
+
+-- Feature Text Label: [Face Nearby Player]
+local featureLabel = Instance.new("TextLabel")
+featureLabel.Size = UDim2.new(0, 240, 1, 0)
+featureLabel.Position = UDim2.new(0, 36, 0, 0)
+featureLabel.BackgroundTransparency = 1
+featureLabel.Font = Enum.Font.Code
+featureLabel.Text = "[Face Nearby Player]"
+featureLabel.TextColor3 = Color3.fromRGB(220, 160, 255)
+featureLabel.TextSize = 13
+featureLabel.TextXAlignment = Enum.TextXAlignment.Left
+featureLabel.Parent = optionFrame
+
+-- Toggle Switch Background (Pill shaped, fully rounded, no sharp edges)
+local toggleBg = Instance.new("Frame")
+toggleBg.Size = UDim2.new(0, 46, 0, 24)
+toggleBg.Position = UDim2.new(1, -56, 0.5, -12)
+toggleBg.BackgroundColor3 = Color3.fromRGB(30, 18, 45)
+toggleBg.BorderSizePixel = 0
+toggleBg.Parent = optionFrame
+
+local toggleBgCorner = Instance.new("UICorner")
+toggleBgCorner.CornerRadius = UDim.new(1, 0)
+toggleBgCorner.Parent = toggleBg
+
+local toggleBgStroke = Instance.new("UIStroke")
+toggleBgStroke.Color = Color3.fromRGB(130, 50, 200)
+toggleBgStroke.Thickness = 1
+toggleBgStroke.Parent = toggleBg
+
+-- Toggle Switch Knob (Smooth sliding pill shape)
+local toggleKnob = Instance.new("Frame")
+toggleKnob.Size = UDim2.new(0, 18, 0, 18)
+toggleKnob.Position = UDim2.new(0, 3, 0.5, -9)
+toggleKnob.BackgroundColor3 = Color3.fromRGB(160, 80, 230)
+toggleKnob.BorderSizePixel = 0
+toggleKnob.Parent = toggleBg
+
+local toggleKnobCorner = Instance.new("UICorner")
+toggleKnobCorner.CornerRadius = UDim.new(1, 0)
+toggleKnobCorner.Parent = toggleKnob
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(1, 0, 1, 0)
+toggleButton.BackgroundTransparency = 1
+toggleButton.Text = ""
+toggleButton.Parent = toggleBg
+
+-- Logic for Toggle Switch & Professional Tweening
+local isAimbotEnabled = false
+local tweenInfo = TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+toggleButton.MouseButton1Click:Connect(function()
+	isAimbotEnabled = not isAimbotEnabled
+	
+	local targetPos
+	local targetColor
+	local bgTargetColor
+	local strokeTargetColor
+	
+	if isAimbotEnabled then
+		targetPos = UDim2.new(1, -21, 0.5, -9)
+		targetColor = Color3.fromRGB(255, 180, 255)
+		bgTargetColor = Color3.fromRGB(75, 25, 120)
+		strokeTargetColor = Color3.fromRGB(220, 100, 255)
+	else
+		targetPos = UDim2.new(0, 3, 0.5, -9)
+		targetColor = Color3.fromRGB(160, 80, 230)
+		bgTargetColor = Color3.fromRGB(30, 18, 45)
+		strokeTargetColor = Color3.fromRGB(130, 50, 200)
+	end
+	
+	TweenService:Create(toggleKnob, tweenInfo, {Position = targetPos, BackgroundColor3 = targetColor}):Play()
+	TweenService:Create(toggleBg, tweenInfo, {BackgroundColor3 = bgTargetColor}):Play()
+	TweenService:Create(toggleBgStroke, tweenInfo, {Color = strokeTargetColor}):Play()
+end)
+
+-- Face Nearby Player Aimbot Loop Execution
+RunService.RenderStepped:Connect(function()
+	if not isAimbotEnabled then return end
+	
+	local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+	if not humanoidRootPart then return end
+	
+	local closestPlayer = nil
+	local shortestDistance = math.huge
+	
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+			local targetHRP = p.Character.HumanoidRootPart
+			local distance = (humanoidRootPart.Position - targetHRP.Position).Magnitude
+			
+			if distance < shortestDistance then
+				shortestDistance = distance
+				closestPlayer = p
+			end
+		end
+	end
+	
+	if closestPlayer and closestPlayer.Character and closestPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		local targetHRP = closestPlayer.Character.HumanoidRootPart
+		local lookPosition = Vector3.new(targetHRP.Position.X, humanoidRootPart.Position.Y, targetHRP.Position.Z)
+		
+		-- Instantly locks facial orientation to target without walking movement
+		humanoidRootPart.CFrame = CFrame.new(humanoidRootPart.Position, lookPosition)
+	end
+end)
