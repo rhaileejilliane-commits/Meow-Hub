@@ -1,0 +1,970 @@
+-- ====================================================================
+-- MeowHUB 3.0 - Fluent UI Adaptation
+-- Multi-Theme System & Core Mechanics Retained
+-- ====================================================================
+
+-- Services
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local Stats = game:GetService("Stats")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- Target UI Parent setup
+local ParentTarget = LocalPlayer:WaitForChild("PlayerGui")
+if gethui then
+    ParentTarget = gethui()
+end
+
+-- Cleanup Old GUIs
+if ParentTarget:FindFirstChild("FollowStatusGui") then ParentTarget.FollowStatusGui:Destroy() end
+if ParentTarget:FindFirstChild("WallhopStatusGui") then ParentTarget.WallhopStatusGui:Destroy() end
+if ParentTarget:FindFirstChild("AutoFlickStatusGui") then ParentTarget.AutoFlickStatusGui:Destroy() end
+if ParentTarget:FindFirstChild("FpsPingGui") then ParentTarget.FpsPingGui:Destroy() end
+
+-- Pixelated Font Selection
+local PixelFont = Enum.Font.Arcade
+
+-- Load Fluent Library
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+-- Create Window
+local Window = Fluent:CreateWindow({
+    Title = "MeowHUB 3.0",
+    SubTitle = "by Developer",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(620, 420),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+-- Create Tabs
+local Tabs = {
+    Home = Window:AddTab({ Title = "Home", Icon = "home" }),
+    Combat = Window:AddTab({ Title = "Combat", Icon = "swords" }),
+    Visual = Window:AddTab({ Title = "Visual", Icon = "eye" }),
+    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
+}
+
+-- Custom Floating Pill Helper
+local function MakeDraggablePill(frame)
+    local dragging, dragInput, dragStart, startPos
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input == dragInput then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X,
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+-- ====================================================================
+-- TAB 1: HOME
+-- ====================================================================
+Tabs.Home:AddParagraph({
+    Title = "Welcome, " .. LocalPlayer.DisplayName .. "!",
+    Content = "Thank you for executing MeowHUB. Press Left Control to minimize/restore this window."
+})
+
+local joinDateStr = "Loading..."
+local joinDays = LocalPlayer.AccountAge
+local joinTime = os.time() - (joinDays * 86400)
+joinDateStr = os.date("%B %d, %Y", joinTime) .. " (" .. joinDays .. " days ago)"
+
+Tabs.Home:AddParagraph({
+    Title = "Account Information",
+    Content = string.format("Display Name: %s\nUsername: @%s\nUser ID: %s\nAccount Created: %s", 
+        LocalPlayer.DisplayName, LocalPlayer.Name, tostring(LocalPlayer.UserId), joinDateStr)
+})
+
+-- ====================================================================
+-- TAB 2: COMBAT
+-- ====================================================================
+Tabs.Combat:AddParagraph({
+    Title = "Usage Tip",
+    Content = "To make Auto Wallhop work: Go to a wall & enable Inf Jump."
+})
+
+-- 1. Auto Flick System
+local AutoFlickEnabled = false
+local AutoFlickStatusGui = nil
+local isFlicking = false
+local lastTouchTimes = {}
+local touchCooldown = 1
+
+local function DestroyAutoFlickPillGui()
+    if AutoFlickStatusGui then
+        AutoFlickStatusGui:Destroy()
+        AutoFlickStatusGui = nil
+    end
+end
+
+local function CreateAutoFlickPillGui()
+    if AutoFlickStatusGui then return end
+
+    AutoFlickStatusGui = Instance.new("ScreenGui")
+    AutoFlickStatusGui.Name = "AutoFlickStatusGui"
+    AutoFlickStatusGui.ResetOnSpawn = false
+    AutoFlickStatusGui.Parent = ParentTarget
+
+    local NotifHolder = Instance.new("Frame")
+    NotifHolder.Name = "NotifHolder"
+    NotifHolder.Size = UDim2.new(0, 230, 0, 150)
+    NotifHolder.Position = UDim2.new(0.5, -115, 0.32, 0)
+    NotifHolder.BackgroundTransparency = 1
+    NotifHolder.Parent = AutoFlickStatusGui
+
+    local StatusFrame = Instance.new("Frame")
+    StatusFrame.Name = "StatusFrame"
+    StatusFrame.Size = UDim2.new(0, 230, 0, 36)
+    StatusFrame.Position = UDim2.new(0.5, -115, 0.24, 0)
+    StatusFrame.BackgroundColor3 = Color3.fromRGB(46, 34, 42)
+    StatusFrame.BackgroundTransparency = 0.2
+    StatusFrame.BorderSizePixel = 0
+    StatusFrame.Parent = AutoFlickStatusGui
+
+    MakeDraggablePill(StatusFrame)
+
+    local StatusCorner = Instance.new("UICorner")
+    StatusCorner.CornerRadius = UDim.new(1, 0)
+    StatusCorner.Parent = StatusFrame
+
+    local StatusLabel = Instance.new("TextLabel")
+    StatusLabel.Name = "StatusLabel"
+    StatusLabel.Size = UDim2.new(1, -55, 1, 0)
+    StatusLabel.Position = UDim2.new(0, 12, 0, 0)
+    StatusLabel.BackgroundTransparency = 1
+    StatusLabel.Text = "Auto Flick [on]"
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 182, 193)
+    StatusLabel.Font = PixelFont
+    StatusLabel.TextSize = 10
+    StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    StatusLabel.Parent = StatusFrame
+
+    local TogglePillBtn = Instance.new("TextButton")
+    TogglePillBtn.Size = UDim2.new(0, 45, 0, 24)
+    TogglePillBtn.Position = UDim2.new(1, -50, 0.5, -12)
+    TogglePillBtn.BackgroundColor3 = Color3.fromRGB(255, 182, 193)
+    TogglePillBtn.BorderSizePixel = 0
+    TogglePillBtn.Text = "ON"
+    TogglePillBtn.TextColor3 = Color3.fromRGB(28, 20, 25)
+    TogglePillBtn.Font = PixelFont
+    TogglePillBtn.TextSize = 10
+    TogglePillBtn.Parent = StatusFrame
+
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(1, 0)
+    BtnCorner.Parent = TogglePillBtn
+
+    TogglePillBtn.MouseButton1Click:Connect(function()
+        AutoFlickEnabled = not AutoFlickEnabled
+        if AutoFlickEnabled then
+            TogglePillBtn.Text = "ON"
+            TogglePillBtn.BackgroundColor3 = Color3.fromRGB(255, 182, 193)
+            StatusLabel.Text = "Auto Flick [on]"
+        else
+            TogglePillBtn.Text = "OFF"
+            TogglePillBtn.BackgroundColor3 = Color3.fromRGB(70, 45, 60)
+            StatusLabel.Text = "Auto Flick [off]"
+        end
+    end)
+end
+
+local function showFlickNotification(playerName)
+    if not AutoFlickStatusGui or not AutoFlickStatusGui:FindFirstChild("NotifHolder") then return end
+    local notifHolder = AutoFlickStatusGui.NotifHolder
+
+    local NotifFrame = Instance.new("Frame")
+    NotifFrame.Size = UDim2.new(1, 0, 0, 28)
+    NotifFrame.Position = UDim2.new(0, 0, 0, -35)
+    NotifFrame.BackgroundColor3 = Color3.fromRGB(46, 34, 42)
+    NotifFrame.BackgroundTransparency = 0.3
+    NotifFrame.BorderSizePixel = 0
+    NotifFrame.Parent = notifHolder
+
+    local NotifCorner = Instance.new("UICorner")
+    NotifCorner.CornerRadius = UDim.new(0, 6)
+    NotifCorner.Parent = NotifFrame
+
+    local NotifText = Instance.new("TextLabel")
+    NotifText.Size = UDim2.new(1, 0, 1, 0)
+    NotifText.BackgroundTransparency = 1
+    NotifText.Text = "Flicked: " .. playerName
+    NotifText.TextColor3 = Color3.fromRGB(255, 240, 245)
+    NotifText.Font = PixelFont
+    NotifText.TextSize = 10
+    NotifText.Parent = NotifFrame
+
+    TweenService:Create(NotifFrame, TweenInfo.new(0.3), {Position = UDim2.new(0, 0, 0, 0)}):Play()
+
+    task.delay(1.5, function()
+        if NotifFrame and NotifFrame.Parent then
+            local t1 = TweenService:Create(NotifFrame, TweenInfo.new(0.3), {BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, -15)})
+            t1:Play()
+            t1.Completed:Wait()
+            NotifFrame:Destroy()
+        end
+    end)
+end
+
+RunService.Stepped:Connect(function()
+    if not AutoFlickEnabled or isFlicking then return end
+
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local pRoot = p.Character:FindFirstChild("HumanoidRootPart")
+            if pRoot then
+                local dist = (hrp.Position - pRoot.Position).Magnitude
+                if dist <= 5 then
+                    local currentTime = os.clock()
+                    if not lastTouchTimes[p] or (currentTime - lastTouchTimes[p] > touchCooldown) then
+                        lastTouchTimes[p] = currentTime
+                        isFlicking = true
+
+                        showFlickNotification(p.Name)
+
+                        task.spawn(function()
+                            local spinSpeed = 120
+                            local accumulatedLeft = 0
+                            while accumulatedLeft < 90 and AutoFlickEnabled do
+                                local dt = RunService.RenderStepped:Wait()
+                                local step = spinSpeed * dt * 60
+                                if accumulatedLeft + step > 90 then step = 90 - accumulatedLeft end
+                                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(step), 0)
+                                accumulatedLeft = accumulatedLeft + step
+                            end
+
+                            local accumulatedRight = 0
+                            while accumulatedRight < 90 and AutoFlickEnabled do
+                                local dt = RunService.RenderStepped:Wait()
+                                local step = spinSpeed * dt * 60
+                                if accumulatedRight + step > 90 then step = 90 - accumulatedRight end
+                                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(-spinSpeed), 0)
+                                accumulatedRight = accumulatedRight + step
+                            end
+                            isFlicking = false
+                        end)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+local AutoFlickToggle = Tabs.Combat:AddToggle("AutoFlick", { Title = "Auto Flick", Default = false })
+AutoFlickToggle:OnChanged(function(Value)
+    AutoFlickEnabled = Value
+    if Value then
+        CreateAutoFlickPillGui()
+    else
+        DestroyAutoFlickPillGui()
+    end
+end)
+
+-- 2. Auto Wallhop System
+local AutoWallhopEnabled = false
+local WallhopStatusGui = nil
+
+local function DestroyWallhopPillGui()
+    if WallhopStatusGui then
+        WallhopStatusGui:Destroy()
+        WallhopStatusGui = nil
+    end
+end
+
+local function CreateWallhopPillGui()
+    if WallhopStatusGui then return end
+
+    WallhopStatusGui = Instance.new("ScreenGui")
+    WallhopStatusGui.Name = "WallhopStatusGui"
+    WallhopStatusGui.ResetOnSpawn = false
+    WallhopStatusGui.Parent = ParentTarget
+
+    local StatusFrame = Instance.new("Frame")
+    StatusFrame.Name = "StatusFrame"
+    StatusFrame.Size = UDim2.new(0, 230, 0, 36)
+    StatusFrame.Position = UDim2.new(0.5, -115, 0.18, 0)
+    StatusFrame.BackgroundColor3 = Color3.fromRGB(46, 34, 42)
+    StatusFrame.BackgroundTransparency = 0.2
+    StatusFrame.BorderSizePixel = 0
+    StatusFrame.Parent = WallhopStatusGui
+
+    MakeDraggablePill(StatusFrame)
+
+    local StatusCorner = Instance.new("UICorner")
+    StatusCorner.CornerRadius = UDim.new(1, 0)
+    StatusCorner.Parent = StatusFrame
+
+    local StatusLabel = Instance.new("TextLabel")
+    StatusLabel.Name = "StatusLabel"
+    StatusLabel.Size = UDim2.new(1, -55, 1, 0)
+    StatusLabel.Position = UDim2.new(0, 12, 0, 0)
+    StatusLabel.BackgroundTransparency = 1
+    StatusLabel.Text = "Auto Wallhop [on]"
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 182, 193)
+    StatusLabel.Font = PixelFont
+    StatusLabel.TextSize = 10
+    StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    StatusLabel.Parent = StatusFrame
+
+    local TogglePillBtn = Instance.new("TextButton")
+    TogglePillBtn.Size = UDim2.new(0, 45, 0, 24)
+    TogglePillBtn.Position = UDim2.new(1, -50, 0.5, -12)
+    TogglePillBtn.BackgroundColor3 = Color3.fromRGB(255, 182, 193)
+    TogglePillBtn.BorderSizePixel = 0
+    TogglePillBtn.Text = "ON"
+    TogglePillBtn.TextColor3 = Color3.fromRGB(28, 20, 25)
+    TogglePillBtn.Font = PixelFont
+    TogglePillBtn.TextSize = 10
+    TogglePillBtn.Parent = StatusFrame
+
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(1, 0)
+    BtnCorner.Parent = TogglePillBtn
+
+    TogglePillBtn.MouseButton1Click:Connect(function()
+        AutoWallhopEnabled = not AutoWallhopEnabled
+        if AutoWallhopEnabled then
+            TogglePillBtn.Text = "ON"
+            TogglePillBtn.BackgroundColor3 = Color3.fromRGB(255, 182, 193)
+            StatusLabel.Text = "Auto Wallhop [on]"
+        else
+            TogglePillBtn.Text = "OFF"
+            TogglePillBtn.BackgroundColor3 = Color3.fromRGB(70, 45, 60)
+            StatusLabel.Text = "Auto Wallhop [off]"
+        end
+    end)
+end
+
+local function isTouchingWall(hrp)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    raycastParams.IgnoreWater = true
+
+    local checkDistance = 2.2
+    local directions = {
+        hrp.CFrame.LookVector,
+        -hrp.CFrame.LookVector,
+        hrp.CFrame.RightVector,
+        -hrp.CFrame.RightVector
+    }
+
+    for _, dir in ipairs(directions) do
+        local result = Workspace:Raycast(hrp.Position, dir * checkDistance, raycastParams)
+        if result and result.Instance and result.Instance.CanCollide and result.Instance.Transparency < 1 then
+            return true
+        end
+    end
+    return false
+end
+
+UserInputService.JumpRequest:Connect(function()
+    if not AutoWallhopEnabled then return end
+
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not humanoid then return end
+
+    if not isTouchingWall(hrp) then return end
+
+    task.spawn(function()
+        local spinSpeed = 90
+        local targetLeft = 90
+        local accumulatedLeft = 0
+        while accumulatedLeft < targetLeft and AutoWallhopEnabled do
+            local dt = RunService.RenderStepped:Wait()
+            local step = spinSpeed * dt * 60
+            if accumulatedLeft + step > targetLeft then step = targetLeft - accumulatedLeft end
+            hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(step), 0)
+            accumulatedLeft = accumulatedLeft + step
+        end
+
+        local targetRight = 90
+        local accumulatedRight = 0
+        while accumulatedRight < targetRight and AutoWallhopEnabled do
+            local dt = RunService.RenderStepped:Wait()
+            local step = spinSpeed * dt * 60
+            if accumulatedRight + step > targetRight then step = targetRight - accumulatedRight end
+            hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(-step), 0)
+            accumulatedRight = accumulatedRight + step
+        end
+    end)
+end)
+
+local AutoWallhopToggle = Tabs.Combat:AddToggle("AutoWallhop", { Title = "Auto Wallhop", Default = false })
+AutoWallhopToggle:OnChanged(function(Value)
+    AutoWallhopEnabled = Value
+    if Value then
+        CreateWallhopPillGui()
+    else
+        DestroyWallhopPillGui()
+    end
+end)
+
+-- 3. Infinite Jump System
+local InfJumpEnabled = false
+local InfJumpConnection
+local lastJumpTime = 0
+local jumpCooldown = 0.25
+
+local InfJumpToggle = Tabs.Combat:AddToggle("InfJump", { Title = "Inf Jump", Default = false })
+InfJumpToggle:OnChanged(function(Value)
+    InfJumpEnabled = Value
+    if InfJumpEnabled then
+        InfJumpConnection = UserInputService.JumpRequest:Connect(function()
+            if not InfJumpEnabled then return end
+
+            local currentTime = os.clock()
+            if currentTime - lastJumpTime < jumpCooldown then return end
+
+            local char = LocalPlayer.Character
+            if char then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                local rootPart = char:FindFirstChild("HumanoidRootPart")
+                if humanoid and rootPart then
+                    lastJumpTime = currentTime
+                    rootPart.AssemblyLinearVelocity = Vector3.new(rootPart.AssemblyLinearVelocity.X, humanoid.JumpPower, rootPart.AssemblyLinearVelocity.Z)
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end
+        end)
+    else
+        if InfJumpConnection then
+            InfJumpConnection:Disconnect()
+            InfJumpConnection = nil
+        end
+    end
+end)
+
+-- 4. TPWalk System
+local TPWalkEnabled = false
+local TPWalkSpeed = 0.001
+
+local TPWalkToggle = Tabs.Combat:AddToggle("TPWalk", { Title = "Enable TPWalk", Default = false })
+TPWalkToggle:OnChanged(function(Value)
+    TPWalkEnabled = Value
+end)
+
+local TPWalkSlider = Tabs.Combat:AddSlider("TPWalkSpeed", {
+    Title = "TPWalk Speed",
+    Default = 0.001,
+    Min = 0.0001,
+    Max = 0.0100,
+    Rounding = 4,
+    Callback = function(Value)
+        TPWalkSpeed = Value
+    end
+})
+
+RunService.RenderStepped:Connect(function()
+    if not TPWalkEnabled then return end
+    local char = LocalPlayer.Character
+    if not char then return end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if humanoid and hrp and humanoid.MoveDirection.Magnitude > 0 then
+        local delta = RunService.RenderStepped:Wait()
+        local moveStep = humanoid.MoveDirection * (TPWalkSpeed * 1000) * (delta * 60)
+        hrp.CFrame = hrp.CFrame + moveStep
+    end
+end)
+
+-- 5. Auto Follow & Touch System
+local AutoFollowEnabled = false
+local FollowStatusGui = nil
+
+local function DestroyFollowPillGui()
+    if FollowStatusGui then
+        FollowStatusGui:Destroy()
+        FollowStatusGui = nil
+    end
+end
+
+local function CreateFollowPillGui()
+    if FollowStatusGui then return end
+
+    FollowStatusGui = Instance.new("ScreenGui")
+    FollowStatusGui.Name = "FollowStatusGui"
+    FollowStatusGui.ResetOnSpawn = false
+    FollowStatusGui.Parent = ParentTarget
+
+    local StatusFrame = Instance.new("Frame")
+    StatusFrame.Name = "StatusFrame"
+    StatusFrame.Size = UDim2.new(0, 260, 0, 36)
+    StatusFrame.Position = UDim2.new(0.5, -130, 0.12, 0)
+    StatusFrame.BackgroundColor3 = Color3.fromRGB(46, 34, 42)
+    StatusFrame.BackgroundTransparency = 0.2
+    StatusFrame.BorderSizePixel = 0
+    StatusFrame.Parent = FollowStatusGui
+
+    MakeDraggablePill(StatusFrame)
+
+    local StatusCorner = Instance.new("UICorner")
+    StatusCorner.CornerRadius = UDim.new(1, 0)
+    StatusCorner.Parent = StatusFrame
+
+    local StatusLabel = Instance.new("TextLabel")
+    StatusLabel.Name = "StatusLabel"
+    StatusLabel.Size = UDim2.new(1, -95, 1, 0)
+    StatusLabel.Position = UDim2.new(0, 12, 0, 0)
+    StatusLabel.BackgroundTransparency = 1
+    StatusLabel.Text = "Auto Follow [on]"
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 182, 193)
+    StatusLabel.Font = PixelFont
+    StatusLabel.TextSize = 10
+    StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    StatusLabel.Parent = StatusFrame
+
+    local TogglePillBtn = Instance.new("TextButton")
+    TogglePillBtn.Size = UDim2.new(0, 45, 0, 24)
+    TogglePillBtn.Position = UDim2.new(1, -50, 0.5, -12)
+    TogglePillBtn.BackgroundColor3 = Color3.fromRGB(255, 182, 193)
+    TogglePillBtn.BorderSizePixel = 0
+    TogglePillBtn.Text = "ON"
+    TogglePillBtn.TextColor3 = Color3.fromRGB(28, 20, 25)
+    TogglePillBtn.Font = PixelFont
+    TogglePillBtn.TextSize = 10
+    TogglePillBtn.Parent = StatusFrame
+
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(1, 0)
+    BtnCorner.Parent = TogglePillBtn
+
+    TogglePillBtn.MouseButton1Click:Connect(function()
+        AutoFollowEnabled = not AutoFollowEnabled
+        if AutoFollowEnabled then
+            TogglePillBtn.Text = "ON"
+            TogglePillBtn.BackgroundColor3 = Color3.fromRGB(255, 182, 193)
+            StatusLabel.Text = "Auto Follow [on]"
+        else
+            TogglePillBtn.Text = "OFF"
+            TogglePillBtn.BackgroundColor3 = Color3.fromRGB(70, 45, 60)
+            StatusLabel.Text = "Auto Follow [off]"
+        end
+    end)
+end
+
+local AutoFollowToggle = Tabs.Combat:AddToggle("AutoFollow", { Title = "Enable Auto Follow & Touch", Default = false })
+AutoFollowToggle:OnChanged(function(Value)
+    AutoFollowEnabled = Value
+    if Value then
+        CreateFollowPillGui()
+    else
+        DestroyFollowPillGui()
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if not AutoFollowEnabled or not FollowStatusGui or not FollowStatusGui:FindFirstChild("StatusFrame") then return end
+
+    local StatusFrame = FollowStatusGui.StatusFrame
+    local StatusLabel = StatusFrame:FindFirstChild("StatusLabel")
+    if not StatusLabel then return end
+
+    local char = LocalPlayer.Character
+    if not char then return end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not hrp then return end
+
+    if humanoid.MoveDirection.Magnitude > 0.05 then
+        StatusLabel.Text = "Follow: Paused (Input)"
+        return
+    end
+
+    local targetPlr = nil
+    local shortestDist = math.huge
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local dist = (hrp.Position - p.Character.HumanoidRootPart.Position).Magnitude
+            if dist < shortestDist then
+                shortestDist = dist
+                targetPlr = p
+            end
+        end
+    end
+
+    if targetPlr and targetPlr.Character then
+        local targetHrp = targetPlr.Character:FindFirstChild("HumanoidRootPart")
+        if targetHrp then
+            StatusLabel.Text = "Touching: " .. targetPlr.Name
+            humanoid:MoveTo(targetHrp.Position)
+        else
+            StatusLabel.Text = "Follow: Missing Root"
+        end
+    else
+        StatusLabel.Text = "Follow: Searching..."
+    end
+end)
+
+-- 6. Hitbox Expander (R6 Only)
+local HitboxEnabled = false
+local HitboxSize = 5
+local originalPartSizes = {}
+
+local function isR6(character)
+    return character:FindFirstChild("Torso") ~= nil and character:FindFirstChild("HumanoidRootPart") ~= nil
+end
+
+local function applyHitboxToPlayer(p)
+    if p == LocalPlayer then return end
+    local char = p.Character
+    if not char or not isR6(char) then return end
+
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local torso = char:FindFirstChild("Torso")
+
+    if hrp then
+        if not originalPartSizes[hrp] then
+            originalPartSizes[hrp] = {Size = hrp.Size, Transparency = hrp.Transparency, CanCollide = hrp.CanCollide}
+        end
+        hrp.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+        hrp.Transparency = 1
+        hrp.CanCollide = false
+    end
+
+    if torso then
+        if not originalPartSizes[torso] then
+            originalPartSizes[torso] = {Size = torso.Size, Transparency = torso.Transparency, CanCollide = torso.CanCollide}
+        end
+        torso.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+        torso.Transparency = 1
+        torso.CanCollide = false
+    end
+end
+
+local function resetHitboxForPlayer(p)
+    local char = p.Character
+    if not char then return end
+
+    for _, partName in ipairs({"HumanoidRootPart", "Torso"}) do
+        local part = char:FindFirstChild(partName)
+        if part and originalPartSizes[part] then
+            part.Size = originalPartSizes[part].Size
+            part.Transparency = originalPartSizes[part].Transparency
+            part.CanCollide = originalPartSizes[part].CanCollide
+            originalPartSizes[part] = nil
+        end
+    end
+end
+
+local function updateAllHitboxes()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if HitboxEnabled then
+            applyHitboxToPlayer(p)
+        else
+            resetHitboxForPlayer(p)
+        end
+    end
+end
+
+local HitboxToggle = Tabs.Combat:AddToggle("Hitbox", { Title = "Enable Hitbox (R6)", Default = false })
+HitboxToggle:OnChanged(function(Value)
+    HitboxEnabled = Value
+    updateAllHitboxes()
+end)
+
+local HitboxSlider = Tabs.Combat:AddSlider("HitboxSize", {
+    Title = "Hitbox Size",
+    Default = 5,
+    Min = 1,
+    Max = 12,
+    Rounding = 0,
+    Callback = function(Value)
+        HitboxSize = Value
+        if HitboxEnabled then updateAllHitboxes() end
+    end
+})
+
+RunService.Stepped:Connect(function()
+    if not HitboxEnabled then return end
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            if isR6(p.Character) then
+                applyHitboxToPlayer(p)
+            end
+
+            for _, part in ipairs(p.Character:GetChildren()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+-- ====================================================================
+-- TAB 3: VISUAL
+-- ====================================================================
+
+-- 1. ESP Highlight
+local ESPEnabled = false
+local ESPFolder = Instance.new("Folder")
+ESPFolder.Name = "ESPFolder"
+ESPFolder.Parent = ParentTarget
+
+local activeHighlights = {}
+
+local function createESP(character)
+    if activeHighlights[character] then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Adornee = character
+    highlight.FillColor = Color3.fromRGB(255, 182, 193)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.OutlineTransparency = 0
+    highlight.Parent = ESPFolder
+
+    activeHighlights[character] = highlight
+end
+
+local function removeESP(character)
+    if activeHighlights[character] then
+        activeHighlights[character]:Destroy()
+        activeHighlights[character] = nil
+    end
+end
+
+local function setupPlayerESP(player)
+    if player == LocalPlayer then return end
+
+    player.CharacterAdded:Connect(function(char)
+        if ESPEnabled then createESP(char) end
+    end)
+
+    player.CharacterRemoving:Connect(function(char)
+        removeESP(char)
+    end)
+
+    if player.Character and ESPEnabled then
+        createESP(player.Character)
+    end
+end
+
+for _, p in ipairs(Players:GetPlayers()) do setupPlayerESP(p) end
+Players.PlayerAdded:Connect(setupPlayerESP)
+
+local ESPToggle = Tabs.Visual:AddToggle("ESP", { Title = "Enable ESP", Default = false })
+ESPToggle:OnChanged(function(Value)
+    ESPEnabled = Value
+    if ESPEnabled then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character then createESP(p.Character) end
+        end
+    else
+        for char, _ in pairs(activeHighlights) do removeESP(char) end
+    end
+end)
+
+-- 2. FPS Booster & Proximity Culling
+local FPSBoosterEnabled = false
+local storedProperties = {}
+local cullingDistance = 80
+
+task.spawn(function()
+    while true do
+        task.wait(0.15)
+        if FPSBoosterEnabled then
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local myPos = hrp.Position
+                for _, part in ipairs(Workspace:GetDescendants()) do
+                    if part:IsA("BasePart") and not part:IsDescendantOf(char) then
+                        local dist = (part.Position - myPos).Magnitude
+                        if dist > cullingDistance then
+                            part.LocalTransparencyModifier = 1
+                        else
+                            part.LocalTransparencyModifier = 0
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+local FPSBoosterToggle = Tabs.Visual:AddToggle("FPSBooster", { Title = "Enable FPS Booster", Default = false })
+FPSBoosterToggle:OnChanged(function(Value)
+    FPSBoosterEnabled = Value
+
+    if FPSBoosterEnabled then
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("Decal") or obj:IsA("Texture") then
+                storedProperties[obj] = obj.Transparency
+                obj.Transparency = 1
+            elseif obj:IsA("SpecialMesh") then
+                storedProperties[obj] = obj.TextureId
+                obj.TextureId = ""
+            elseif obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
+                storedProperties[obj] = obj.Enabled
+                obj.Enabled = false
+            end
+        end
+
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Character then
+                local head = p.Character:FindFirstChild("Head")
+                if head then
+                    for _, child in ipairs(head:GetChildren()) do
+                        if child:IsA("Decal") and child.Name == "face" then
+                            storedProperties[child] = child.Transparency
+                            child.Transparency = 1
+                        end
+                    end
+                end
+            end
+        end
+
+        storedProperties["Ambient"] = Lighting.Ambient
+        storedProperties["OutdoorAmbient"] = Lighting.OutdoorAmbient
+        storedProperties["Brightness"] = Lighting.Brightness
+
+        Lighting.Ambient = Color3.fromRGB(80, 60, 75)
+        Lighting.OutdoorAmbient = Color3.fromRGB(80, 60, 75)
+        Lighting.Brightness = 1.5
+    else
+        for _, part in ipairs(Workspace:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.LocalTransparencyModifier = 0
+            end
+        end
+
+        for obj, prop in pairs(storedProperties) do
+            if typeof(obj) == "Instance" and obj.Parent then
+                if obj:IsA("Decal") or obj:IsA("Texture") then
+                    obj.Transparency = prop
+                elseif obj:IsA("SpecialMesh") then
+                    obj.TextureId = prop
+                elseif obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
+                    obj.Enabled = prop
+                end
+            end
+        end
+
+        if storedProperties["Ambient"] then
+            Lighting.Ambient = storedProperties["Ambient"]
+            Lighting.OutdoorAmbient = storedProperties["OutdoorAmbient"]
+            Lighting.Brightness = storedProperties["Brightness"]
+        end
+
+        storedProperties = {}
+    end
+end)
+
+-- 3. Show FPS & Ping Pill
+local FpsPingGui = Instance.new("ScreenGui")
+FpsPingGui.Name = "FpsPingGui"
+FpsPingGui.ResetOnSpawn = false
+FpsPingGui.Enabled = false
+FpsPingGui.Parent = ParentTarget
+
+local PillFrame = Instance.new("Frame")
+PillFrame.Size = UDim2.new(0, 180, 0, 36)
+PillFrame.Position = UDim2.new(0, 20, 0, 20)
+PillFrame.BackgroundColor3 = Color3.fromRGB(46, 34, 42)
+PillFrame.BackgroundTransparency = 0.2
+PillFrame.BorderSizePixel = 0
+PillFrame.Parent = FpsPingGui
+
+MakeDraggablePill(PillFrame)
+
+local PillCorner = Instance.new("UICorner")
+PillCorner.CornerRadius = UDim.new(1, 0)
+PillCorner.Parent = PillFrame
+
+local ThePillLabel = Instance.new("TextLabel")
+ThePillLabel.Name = "PillLabel"
+ThePillLabel.Size = UDim2.new(1, 0, 1, 0)
+ThePillLabel.BackgroundTransparency = 1
+ThePillLabel.Text = "FPS: -- | Ping: -- ms"
+ThePillLabel.TextColor3 = Color3.fromRGB(255, 182, 193)
+ThePillLabel.Font = PixelFont
+ThePillLabel.TextSize = 10
+ThePillLabel.Parent = PillFrame
+
+local frameCount = 0
+local lastUpdate = os.clock()
+
+RunService.RenderStepped:Connect(function()
+    frameCount = frameCount + 1
+    local now = os.clock()
+    if now - lastUpdate >= 1 then
+        local currentFps = math.floor(frameCount / (now - lastUpdate))
+        frameCount = 0
+        lastUpdate = now
+
+        if FpsPingGui.Enabled then
+            local ping = 0
+            pcall(function()
+                ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+            end)
+            ThePillLabel.Text = string.format("FPS: %d | Ping: %d ms", currentFps, ping)
+        end
+    end
+end)
+
+local FpsPingToggle = Tabs.Visual:AddToggle("FpsPing", { Title = "Show FPS & Ping", Default = false })
+FpsPingToggle:OnChanged(function(Value)
+    FpsPingGui.Enabled = Value
+end)
+
+-- ====================================================================
+-- TAB 4: SETTINGS
+-- ====================================================================
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+
+InterfaceManager:SetFolder("MeowHubConfig")
+SaveManager:SetFolder("MeowHubConfig/Main")
+
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs.Settings)
+
+Window:SelectTab(1)
+
+Fluent:Notify({
+    Title = "MeowHUB 3.0",
+    Content = "Loaded Successfully! Press Left Control to toggle menu.",
+    Duration = 5
+})
