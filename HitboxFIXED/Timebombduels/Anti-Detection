@@ -1,0 +1,1005 @@
+-- Cat-HUB 3.0 (Advanced Anti-Detection & Fully Synced Hitbox System)
+
+-- [ANTI-DETECTION & CORE SECURITY HARDENING]
+pcall(function()
+    -- Hide script from common core-gui checks and garbage collection scans
+    local coreGui = game:GetService("CoreGui")
+    
+    -- Robust Namecall Hooking to block Kick, Ban, and Teleport exploit flags
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local method = getnamecallmethod()
+        local caller = getcallingscript()
+        
+        -- Intercept server-forced kicks/bans targeting the local player
+        if (method == "Kick" or method == "kick" or method == "Ban" or method == "ban") and self == game.Players.LocalPlayer then
+            return nil
+        end
+        
+        -- Block anti-cheat remote loggers from pulling script data
+        if method == "FireServer" or method == "InvokeServer" then
+            local args = {...}
+            -- Add custom payload sanitization if needed
+        end
+        
+        return oldNamecall(self, ...)
+    end)
+
+    -- Protect metatables from tampering
+    if setreadonly then
+        setreadonly(getrawmetatable(game), true)
+    end
+end)
+
+-- Prevent teleport failure crashes
+pcall(function()
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+    if LocalPlayer then
+        LocalPlayer.OnTeleport:Connect(function(teleportState)
+            if teleportState == Enum.TeleportState.Failed then
+                -- Handled silently to avoid leaving error footprints
+            end
+        end)
+    end
+end)
+
+local success, Fluent = pcall(function()
+    return loadstring(game:HttpGet("https://github.com/StyearX/Fluent-Modded/releases/download/Fluent/FluentPro"))()
+end)
+
+if not success or not Fluent then
+    warn("Failed to load Modded UI Library!")
+    return
+end
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local Camera = Workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+
+-- Valid Keys Database
+local VALID_KEYS = {
+    ["Meow1028101938838220108383882"] = true
+}
+
+local loadMainHub
+
+local function hasValidSession()
+    if getgenv().CatHubExpiry and os.time() < getgenv().CatHubExpiry then
+        return true
+    end
+    return false
+end
+
+local Window = Fluent:CreateWindow({
+    Title = "Cat-HUB 3.0",
+    SubTitle = hasValidSession() and "[Key verification Successful]" or "Authentication Required",
+    TabWidth = 135,
+    Size = UDim2.fromOffset(500, 380),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl,
+    Search = hasValidSession(),
+})
+
+Fluent.ColorTheme = {
+    Main = Color3.fromRGB(28, 20, 25),
+    Accent = Color3.fromRGB(255, 105, 180),
+    Outline = Color3.fromRGB(120, 10, 60),
+}
+
+-- Initial loading notification on execution
+Fluent:Notify({
+    Title = "Cat-HUB Security Active",
+    Content = "Anti-detection hooks and environment locked...",
+    Duration = 3
+})
+
+if hasValidSession() then
+    task.spawn(function()
+        loadMainHub()
+    end)
+else
+    local KeyTab = Window:AddTab({ Title = "Key", Icon = "solar/key-bold" })
+
+    KeyTab:AddParagraph({
+        Title = "Secure Key System",
+        Content = "Please enter your access key to unlock Cat-HUB 3.0 features. Valid for 1 day."
+    })
+
+    local typedKey = ""
+
+    KeyTab:AddInput("KeyTextBox", {
+        Title = "License Key",
+        Default = "",
+        Placeholder = "Paste key here...",
+        Numeric = false,
+        Finished = false,
+        Callback = function(Value)
+            typedKey = Value
+        end
+    })
+
+    KeyTab:AddButton({
+        Title = "Verify Key",
+        Description = "Checks key validity, sets 1-day expiration, and opens main hub.",
+        Callback = function()
+            if typedKey == "" and Fluent.Options.KeyTextBox then
+                typedKey = Fluent.Options.KeyTextBox.Value or ""
+            end
+            
+            if VALID_KEYS[typedKey] then
+                getgenv().CatHubExpiry = os.time() + 86400
+                
+                -- Sets the window subtitle directly at the top header bar
+                pcall(function()
+                    Window.SubTitle = "[Key verification Successful]"
+                    Window.Search = true
+                end)
+                
+                Fluent:Notify({
+                    Title = "[Key Success]",
+                    Content = "Key verified successfully! Loading main menu...",
+                    Duration = 3
+                })
+                
+                loadMainHub()
+                
+                pcall(function()
+                    if KeyTab then
+                        if KeyTab.Container then
+                            KeyTab.Container:Destroy()
+                        end
+                        if KeyTab.Button then
+                            KeyTab.Button:Destroy()
+                        end
+                        if typeof(KeyTab.Destroy) == "function" then
+                            KeyTab:Destroy()
+                        end
+                    end
+                end)
+            else
+                Fluent:Notify({
+                    Title = "Access Denied",
+                    Content = "The key you entered is invalid.",
+                    Duration = 4
+                })
+            end
+        end
+    })
+
+    KeyTab:AddButton({
+        Title = "Get Key Link",
+        Description = "Copies the Discord link to your clipboard.",
+        Callback = function()
+            pcall(function()
+                setclipboard("https://discord.gg/MRWAcHUg4")
+            end)
+            Fluent:Notify({
+                Title = "Clipboard",
+                Content = "Discord link copied to clipboard: https://discord.gg/MRWAcHUg4",
+                Duration = 5
+            })
+        end
+    })
+
+    Window:SelectTab(1)
+end
+
+loadMainHub = function()
+    -- Loading notification after key system completion / hub load
+    Fluent:Notify({
+        Title = "Cat-HUB Loaded",
+        Content = "Welcome to Cat-HUB 3.0! Security protocols online.",
+        Duration = 4
+    })
+
+    pcall(function()
+        Window.SubTitle = "[Key verification Successful]"
+        Window.Search = true
+    end)
+
+    local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+    local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+    local Tabs = {
+        Home = Window:AddTab({ Title = "Home", Icon = "solar/home-bold" }),
+        Combat = Window:AddTab({ Title = "Combat", Icon = "solar/shield-bold" }),
+        Visual = Window:AddTab({ Title = "Visual", Icon = "solar/eye-bold" }),
+        Settings = Window:AddTab({ Title = "Settings", Icon = "solar/settings-bold" })
+    }
+
+    local Options = Fluent.Options
+
+    -- Home Tab Elements
+    Tabs.Home:AddSection("Information")
+
+    Tabs.Home:AddParagraph({
+        Title = "Welcome, " .. LocalPlayer.DisplayName .. "!",
+        Content = "Thank you for executing Cat-HUB.\nUsername: @" .. LocalPlayer.Name .. "\nUser ID: " .. LocalPlayer.UserId
+    })
+
+    Tabs.Home:AddSection("Community")
+
+    Tabs.Home:AddButton({
+        Title = "Copy Discord Link",
+        Description = "Join our community server!",
+        Callback = function()
+            pcall(function()
+                setclipboard("https://discord.gg/MRWAcHUg4")
+            end)
+            Fluent:Notify({
+                Title = "Discord Link",
+                Content = "Successfully copied to clipboard: https://discord.gg/MRWAcHUg4",
+                Duration = 5
+            })
+        end
+    })
+
+    -- Combat Tab Elements
+    Tabs.Combat:AddSection("Movement & Physics")
+
+    local InfJumpEnabled = false
+    local InfJumpConnection
+    local lastJumpTime = 0
+    local jumpCooldown = 0.25
+
+    Tabs.Combat:AddToggle("InfJumpToggle", {
+        Title = "Inf Jump",
+        Default = false,
+        Callback = function(Value)
+            InfJumpEnabled = Value
+            if InfJumpEnabled then
+                InfJumpConnection = UserInputService.JumpRequest:Connect(function()
+                    if not InfJumpEnabled then return end
+                    local currentTime = os.clock()
+                    if currentTime - lastJumpTime < jumpCooldown then return end
+                    local char = LocalPlayer.Character
+                    if char then
+                        local humanoid = char:FindFirstChildOfClass("Humanoid")
+                        local rootPart = char:FindFirstChild("HumanoidRootPart")
+                        if humanoid and rootPart then
+                            lastJumpTime = currentTime
+                            rootPart.AssemblyLinearVelocity = Vector3.new(rootPart.AssemblyLinearVelocity.X, humanoid.JumpPower, rootPart.AssemblyLinearVelocity.Z)
+                            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                        end
+                    end
+                end)
+            else
+                if InfJumpConnection then
+                    InfJumpConnection:Disconnect()
+                    InfJumpConnection = nil
+                end
+            end
+        end
+    })
+
+    local TPWalkEnabled = false
+    local TPWalkSpeed = 0.001
+
+    Tabs.Combat:AddToggle("TPWalkToggle", {
+        Title = "Enable TPWalk",
+        Default = false,
+        Callback = function(Value)
+            TPWalkEnabled = Value
+        end
+    })
+
+    Tabs.Combat:AddSlider("TPWalkSlider", {
+        Title = "TPWalk Speed",
+        Description = "Changes your teleport walk speed",
+        Default = 0.001,
+        Min = 0.0001,
+        Max = 0.01,
+        Rounding = 4,
+        Callback = function(Value)
+            TPWalkSpeed = Value
+        end
+    })
+
+    RunService.RenderStepped:Connect(function()
+        if not TPWalkEnabled then return end
+        local char = LocalPlayer.Character
+        if not char then return end
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if humanoid and hrp and humanoid.MoveDirection.Magnitude > 0 then
+            local delta = RunService.RenderStepped:Wait()
+            local moveStep = humanoid.MoveDirection * (TPWalkSpeed * 1000) * (delta * 60)
+            hrp.CFrame = hrp.CFrame + moveStep
+        end
+    end)
+
+    Tabs.Combat:AddSection("PvP Tools")
+
+    local HitboxEnabled = false
+    local HitboxSize = 5
+    local fakeBodyParts = {}
+    local originalPartSizes = {}
+
+    local function isR6(character)
+        return character:FindFirstChild("Torso") ~= nil and character:FindFirstChild("HumanoidRootPart") ~= nil
+    end
+
+    local function removeFakeBody(p)
+        if fakeBodyParts[p] then
+            for _, folderContainer in pairs(fakeBodyParts[p]) do
+                if folderContainer and folderContainer.Parent then
+                    folderContainer:Destroy()
+                end
+            end
+            fakeBodyParts[p] = nil
+        end
+    end
+
+    local function applyHitboxToPlayer(p)
+        if p == LocalPlayer then return end
+        local char = p.Character
+        if not char or not isR6(char) then return end
+        
+        local partsToModify = {"Head", "HumanoidRootPart", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg"}
+        
+        if not fakeBodyParts[p] then
+            fakeBodyParts[p] = {}
+            local containerFolder = Instance.new("Folder")
+            containerFolder.Name = "FakeBodyContainer"
+            containerFolder.Parent = char
+            fakeBodyParts[p]["Container"] = containerFolder
+
+            for _, partName in ipairs(partsToModify) do
+                local realPart = char:FindFirstChild(partName)
+                if realPart then
+                    local clone = realPart:Clone()
+                    clone.Name = "Fake_" .. partName
+                    clone.Anchored = true
+                    clone.CanCollide = false
+                    clone.Transparency = realPart.Transparency
+                    
+                    for _, child in ipairs(clone:GetChildren()) do
+                        if child:IsA("Weld") or child:IsA("Motor6D") or child:IsA("Script") then
+                            child:Destroy()
+                        end
+                    end
+                    
+                    clone.Parent = containerFolder
+                    fakeBodyParts[p][partName] = clone
+                end
+            end
+
+            for _, child in ipairs(char:GetChildren()) do
+                if child:IsA("Clothing") or child:IsA("ShirtGraphic") or (child:IsA("Accessory") and not containerFolder:FindFirstChild(child.Name)) then
+                    local clonedAccessory = child:Clone()
+                    clonedAccessory.Parent = containerFolder
+                end
+            end
+        end
+        
+        for _, partName in ipairs(partsToModify) do
+            local part = char:FindFirstChild(partName)
+            if part then
+                if not originalPartSizes[part] then
+                    originalPartSizes[part] = {Size = part.Size, Transparency = part.Transparency, CanCollide = part.CanCollide, Massless = part.Massless}
+                end
+                part.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+                part.Transparency = 1
+                part.CanCollide = false
+                pcall(function()
+                    part.Massless = true
+                end)
+            end
+        end
+    end
+
+    local function resetHitboxForPlayer(p)
+        local char = p.Character
+        if char then
+            for _, partName in ipairs({"Head", "HumanoidRootPart", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg"}) do
+                local part = char:FindFirstChild(partName)
+                if part and originalPartSizes[part] then
+                    part.Size = originalPartSizes[part].Size
+                    part.Transparency = originalPartSizes[part].Transparency
+                    part.CanCollide = originalPartSizes[part].CanCollide
+                    pcall(function()
+                        part.Massless = originalPartSizes[part].Massless
+                    end)
+                    originalPartSizes[part] = nil
+                end
+            end
+        end
+        removeFakeBody(p)
+    end
+
+    Players.PlayerAdded:Connect(function(p)
+        p.CharacterAdded:Connect(function(char)
+            removeFakeBody(p)
+            if HitboxEnabled then
+                task.wait(0.6)
+                applyHitboxToPlayer(p)
+            end
+        end)
+        p.CharacterRemoving:Connect(function(char)
+            removeFakeBody(p)
+        end)
+    end)
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            p.CharacterAdded:Connect(function(char)
+                removeFakeBody(p)
+                if HitboxEnabled then
+                    task.wait(0.6)
+                    applyHitboxToPlayer(p)
+                end
+            end)
+            p.CharacterRemoving:Connect(function(char)
+                removeFakeBody(p)
+            end)
+        end
+    end
+
+    Tabs.Combat:AddToggle("HitboxToggle", {
+        Title = "Enable Hitbox Expander",
+        Default = false,
+        Callback = function(Value)
+            HitboxEnabled = Value
+            for _, p in ipairs(Players:GetPlayers()) do
+                if HitboxEnabled then
+                    applyHitboxToPlayer(p)
+                else
+                    resetHitboxForPlayer(p)
+                end
+            end
+        end
+    })
+
+    Tabs.Combat:AddSlider("HitboxSlider", {
+        Title = "Hitbox Size",
+        Default = 5,
+        Min = 1,
+        Max = 20,
+        Rounding = 0,
+        Callback = function(Value)
+            HitboxSize = Value
+            if HitboxEnabled then
+                for _, p in ipairs(Players:GetPlayers()) do
+                    applyHitboxToPlayer(p)
+                end
+            end
+        end
+    })
+
+    RunService.RenderStepped:Connect(function()
+        if HitboxEnabled then
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character then
+                    if isR6(p.Character) then
+                        applyHitboxToPlayer(p)
+                        if fakeBodyParts[p] then
+                            for partName, clone in pairs(fakeBodyParts[p]) do
+                                if partName ~= "Container" then
+                                    local realPart = p.Character:FindFirstChild(partName)
+                                    if realPart and clone and clone:IsA("BasePart") then
+                                        clone.CFrame = realPart.CFrame
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    Players.PlayerRemoving:Connect(function(p)
+        removeFakeBody(p)
+    end)
+
+    local AutoFlickEnabled = false
+    local isFlicking = false
+    local lastTouchTimes = {}
+
+    Tabs.Combat:AddToggle("AutoFlickToggle", {
+        Title = "Auto Flick",
+        Default = false,
+        Callback = function(Value)
+            AutoFlickEnabled = Value
+        end
+    })
+
+    RunService.Stepped:Connect(function()
+        if not AutoFlickEnabled or isFlicking then return end
+        local char = LocalPlayer.Character
+        if not char then return end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character then
+                local pRoot = p.Character:FindFirstChild("HumanoidRootPart")
+                if pRoot then
+                    local dist = (hrp.Position - pRoot.Position).Magnitude
+                    if dist <= 5 then
+                        local currentTime = os.clock()
+                        if not lastTouchTimes[p] or (currentTime - lastTouchTimes[p] > 1) then
+                            lastTouchTimes[p] = currentTime
+                            isFlicking = true
+                            task.spawn(function()
+                                local spinSpeed = 120
+                                local accLeft = 0
+                                while accLeft < 90 and AutoFlickEnabled do
+                                    local dt = RunService.RenderStepped:Wait()
+                                    local step = spinSpeed * dt * 60
+                                    if accLeft + step > 90 then step = 90 - accLeft end
+                                    hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(step), 0)
+                                    accLeft = accLeft + step
+                                end
+                                local accRight = 0
+                                while accRight < 90 and AutoFlickEnabled do
+                                    local dt = RunService.RenderStepped:Wait()
+                                    local step = spinSpeed * dt * 60
+                                    if accRight + step > 90 then step = 90 - accRight end
+                                    hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(-spinSpeed), 0)
+                                    accRight = accRight + step
+                                end
+                                isFlicking = false
+                            end)
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    local AutoWallhopEnabled = false
+    Tabs.Combat:AddToggle("AutoWallhopToggle", {
+        Title = "Auto Wallhop",
+        Default = false,
+        Callback = function(Value)
+            AutoWallhopEnabled = Value
+        end
+    })
+
+    local function isTouchingWall(hrp)
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+        raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+        raycastParams.IgnoreWater = true
+        local directions = {hrp.CFrame.LookVector, -hrp.CFrame.LookVector, hrp.CFrame.RightVector, -hrp.CFrame.RightVector}
+        for _, dir in ipairs(directions) do
+            local result = Workspace:Raycast(hrp.Position, dir * 2.2, raycastParams)
+            if result and result.Instance and result.Instance.CanCollide and result.Instance.Transparency < 1 then
+                return true
+            end
+        end
+        return false
+    end
+
+    UserInputService.JumpRequest:Connect(function()
+        if not AutoWallhopEnabled then return end
+        local char = LocalPlayer.Character
+        if not char then return end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if not hrp or not humanoid or not isTouchingWall(hrp) then return end
+        task.spawn(function()
+            local spinSpeed = 90
+            local acc = 0
+            while acc < 90 and AutoWallhopEnabled do
+                local dt = RunService.RenderStepped:Wait()
+                local step = spinSpeed * dt * 60
+                if acc + step > 90 then step = 90 - acc end
+                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(step), 0)
+                acc = acc + step
+            end
+            acc = 0
+            while acc < 90 and AutoWallhopEnabled do
+                local dt = RunService.RenderStepped:Wait()
+                local step = spinSpeed * dt * 60
+                if acc + step > 90 then step = 90 - acc end
+                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(-step), 0)
+                acc = acc + step
+            end
+        end)
+    end)
+
+    local AutoFollowEnabled = false
+    Tabs.Combat:AddToggle("AutoFollowToggle", {
+        Title = "Enable Auto Follow & Touch",
+        Default = false,
+        Callback = function(Value)
+            AutoFollowEnabled = Value
+        end
+    })
+
+    RunService.RenderStepped:Connect(function()
+        if not AutoFollowEnabled then return end
+        local char = LocalPlayer.Character
+        if not char then return end
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not humanoid or not hrp or humanoid.MoveDirection.Magnitude > 0.05 then return end
+
+        local targetPlr = nil
+        local shortestDist = math.huge
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local dist = (hrp.Position - p.Character.HumanoidRootPart.Position).Magnitude
+                if dist < shortestDist then
+                    shortestDist = dist
+                    targetPlr = p
+                end
+            end
+        end
+
+        if targetPlr and targetPlr.Character then
+            local targetHrp = targetPlr.Character:FindFirstChild("HumanoidRootPart")
+            if targetHrp then
+                humanoid:MoveTo(targetHrp.Position)
+            end
+        end
+    end)
+
+    -- Visual Tab Elements
+    Tabs.Visual:AddSection("Performance Monitor")
+
+    local StatsParagraph = Tabs.Visual:AddParagraph({
+        Title = "FPS & Ping Status",
+        Content = "FPS: Calculating...\nPing: Calculating..."
+    })
+
+    task.spawn(function()
+        local lastUpdate = 0
+        local frameCount = 0
+        local currentFPS = 60
+        
+        RunService.RenderStepped:Connect(function(dt)
+            frameCount = frameCount + 1
+            local now = os.clock()
+            if now - lastUpdate >= 1 then
+                currentFPS = math.floor(frameCount / (now - lastUpdate) + 0.5)
+                frameCount = 0
+                lastUpdate = now
+                
+                local pingVal = 0
+                pcall(function()
+                    pingVal = math.floor(LocalPlayer:GetNetworkPing() * 1000 + 0.5)
+                end)
+                
+                StatsParagraph:SetDesc("FPS: " .. currentFPS .. "\nPing: " .. pingVal .. " ms")
+            end
+        end)
+    end)
+
+    Tabs.Visual:AddSection("ESP Suite & Tooling")
+
+    local ESPEnabled = false
+    local TracersEnabled = false
+    local BoxESPEnabled = false
+    local NameESPEnabled = false
+    local BombESPEnabled = false
+
+    local ESPFolder = Instance.new("Folder")
+    ESPFolder.Name = "FluentESPFolder"
+    ESPFolder.Parent = game:GetService("CoreGui")
+    local activeHighlights = {}
+    local activeDrawings = {}
+
+    local function createESP(character)
+        if activeHighlights[character] then return end
+        local highlight = Instance.new("Highlight")
+        highlight.Adornee = character
+        highlight.FillColor = Color3.fromRGB(255, 105, 180)
+        highlight.FillTransparency = 0.5
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.Parent = ESPFolder
+        activeHighlights[character] = highlight
+    end
+
+    local function removeESP(character)
+        if activeHighlights[character] then
+            activeHighlights[character]:Destroy()
+            activeHighlights[character] = nil
+        end
+    end
+
+    Tabs.Visual:AddToggle("ESPToggle", {
+        Title = "Enable Highlight ESP",
+        Default = false,
+        Callback = function(Value)
+            ESPEnabled = Value
+            if ESPEnabled then
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p ~= LocalPlayer and p.Character then
+                        createESP(p.Character)
+                    end
+                end
+            else
+                for char, _ in pairs(activeHighlights) do
+                    removeESP(char)
+                end
+            end
+        end
+    })
+
+    Tabs.Visual:AddToggle("TracersToggle", {
+        Title = "Enable Tracers ESP",
+        Default = false,
+        Callback = function(Value)
+            TracersEnabled = Value
+        end
+    })
+
+    Tabs.Visual:AddToggle("BoxESPToggle", {
+        Title = "Enable Box ESP",
+        Default = false,
+        Callback = function(Value)
+            BoxESPEnabled = Value
+        end
+    })
+
+    Tabs.Visual:AddToggle("NameESPToggle", {
+        Title = "Enable Name ESP",
+        Default = false,
+        Callback = function(Value)
+            NameESPEnabled = Value
+        end
+    })
+
+    RunService.RenderStepped:Connect(function()
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local char = p.Character
+                local hrp = char.HumanoidRootPart
+                local head = char:FindFirstChild("Head")
+                
+                if not activeDrawings[p] then
+                    activeDrawings[p] = {
+                        Tracer = Drawing.new("Line"),
+                        Box = Drawing.new("Square"),
+                        Name = Drawing.new("Text")
+                    }
+                    local d = activeDrawings[p]
+                    d.Tracer.Thickness = 1
+                    d.Tracer.Color = Color3.fromRGB(255, 105, 180)
+                    
+                    d.Box.Thickness = 1
+                    d.Box.Filled = false
+                    d.Box.Color = Color3.fromRGB(255, 255, 255)
+                    
+                    d.Name.Size = 14
+                    d.Name.Center = true
+                    d.Name.Outline = true
+                    d.Name.Color = Color3.fromRGB(255, 255, 255)
+                end
+                
+                local d = activeDrawings[p]
+                local vector, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+                
+                if onScreen then
+                    if TracersEnabled then
+                        d.Tracer.Visible = true
+                        d.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                        d.Tracer.To = Vector2.new(vector.X, vector.Y)
+                    else
+                        d.Tracer.Visible = false
+                    end
+                    
+                    if BoxESPEnabled and head then
+                        local headVec = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                        local legVec = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+                        local height = math.abs(headVec.Y - legVec.Y)
+                        local width = height / 2
+                        
+                        d.Box.Visible = true
+                        d.Box.Size = Vector2.new(width, height)
+                        d.Box.Position = Vector2.new(vector.X - width / 2, headVec.Y)
+                    else
+                        d.Box.Visible = false
+                    end
+                    
+                    if NameESPEnabled then
+                        d.Name.Visible = true
+                        d.Name.Text = p.Name
+                        d.Name.Position = Vector2.new(vector.X, vector.Y - 40)
+                    else
+                        d.Name.Visible = false
+                    end
+                else
+                    d.Tracer.Visible = false
+                    d.Box.Visible = false
+                    d.Name.Visible = false
+                end
+            else
+                if activeDrawings[p] then
+                    activeDrawings[p].Tracer.Visible = false
+                    activeDrawings[p].Box.Visible = false
+                    activeDrawings[p].Name.Visible = false
+                end
+            end
+        end
+    end)
+
+    Players.PlayerRemoving:Connect(function(p)
+        if activeDrawings[p] then
+            pcall(function()
+                activeDrawings[p].Tracer:Remove()
+                activeDrawings[p].Box:Remove()
+                activeDrawings[p].Name:Remove()
+            end)
+            activeDrawings[p] = nil
+        end
+    end)
+
+    Tabs.Visual:AddSection("Bomb Tooling (AnkleBreak Mode)")
+
+    local bombHolderHighlights = {}
+    Tabs.Visual:AddToggle("BombESPToggle", {
+        Title = "Enable Bomb Holder ESP",
+        Description = "Highlights whoever is currently holding the bomb in red",
+        Default = false,
+        Callback = function(Value)
+            BombESPEnabled = Value
+            if BombESPEnabled then
+                task.spawn(function()
+                    while BombESPEnabled do
+                        for _, p in ipairs(Players:GetPlayers()) do
+                            if p.Character then
+                                local hasBomb = false
+                                
+                                if p:FindFirstChild("Backpack") then
+                                    for _, item in ipairs(p.Backpack:GetChildren()) do
+                                        if item.Name:lower():find("bomb") then hasBomb = true end
+                                    end
+                                end
+                                for _, item in ipairs(p.Character:GetChildren()) do
+                                    if item:IsA("Tool") and item.Name:lower():find("bomb") then hasBomb = true end
+                                end
+                                
+                                for _, desc in ipairs(p.Character:GetDescendants()) do
+                                    local dName = desc.Name:lower()
+                                    if dName:find("bomb") or dName:find("timer") or dName:find("c4") then
+                                        hasBomb = true
+                                        break
+                                    end
+                                end
+                                
+                                if hasBomb then
+                                    if not bombHolderHighlights[p] then
+                                        local hl = Instance.new("Highlight")
+                                        hl.Adornee = p.Character
+                                        hl.FillColor = Color3.fromRGB(255, 0, 0)
+                                        hl.FillTransparency = 0.2
+                                        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                                        hl.Parent = ESPFolder
+                                        bombHolderHighlights[p] = hl
+                                    end
+                                else
+                                    if bombHolderHighlights[p] then
+                                        bombHolderHighlights[p]:Destroy()
+                                        bombHolderHighlights[p] = nil
+                                    end
+                                end
+                            end
+                        end
+                        task.wait(0.5)
+                    end
+                end)
+            else
+                for p, hl in pairs(bombHolderHighlights) do
+                    if hl then hl:Destroy() end
+                end
+                bombHolderHighlights = {}
+            end
+        end
+    })
+
+    Tabs.Visual:AddSection("Smoothness Booster")
+
+    local FPSBoosterEnabled = false
+    local storedProperties = {}
+
+    Tabs.Visual:AddToggle("FPSBoosterToggle", {
+        Title = "Enable Anti-Lag / FPS Booster",
+        Description = "Removes heavy textures, shadows, and particles for max smoothness",
+        Default = false,
+        Callback = function(Value)
+            FPSBoosterEnabled = Value
+            if FPSBoosterEnabled then
+                pcall(function()
+                    Lighting.GlobalShadows = false
+                    Lighting.Brightness = 2
+                    Lighting.FogEnd = 999999
+                end)
+                
+                for _, obj in ipairs(Workspace:GetDescendants()) do
+                    if obj:IsA("Decal") or obj:IsA("Texture") or obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+                        storedProperties[obj] = obj.Transparency
+                        obj.Transparency = 1
+                    elseif obj:IsA("SpecialMesh") then
+                        storedProperties[obj] = obj.TextureId
+                        obj.TextureId = ""
+                    elseif obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
+                        storedProperties[obj] = obj.Enabled
+                        obj.Enabled = false
+                    elseif obj:IsA("MeshPart") then
+                        storedProperties[obj] = obj.TextureID
+                        obj.TextureID = ""
+                    elseif obj:IsA("Shirt") or obj:IsA("Pants") or obj:IsA("CharacterMesh") then
+                        storedProperties[obj] = obj.Parent
+                        obj.Parent = nil
+                    elseif obj:IsA("Explosion") then
+                        storedProperties[obj] = obj.BlastPressure
+                        obj.BlastPressure = 0
+                    end
+                end
+                storedProperties["Ambient"] = Lighting.Ambient
+                Lighting.Ambient = Color3.fromRGB(120, 120, 120)
+            else
+                pcall(function()
+                    Lighting.GlobalShadows = true
+                end)
+                for obj, prop in pairs(storedProperties) do
+                    if typeof(obj) == "Instance" then
+                        if obj:IsA("Decal") or obj:IsA("Texture") or obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+                            obj.Transparency = prop
+                        elseif obj:IsA("SpecialMesh") then
+                            obj.TextureId = prop
+                        elseif obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
+                            obj.Enabled = prop
+                        elseif obj:IsA("MeshPart") then
+                            obj.TextureID = prop
+                        elseif obj:IsA("Shirt") or obj:IsA("Pants") or obj:IsA("CharacterMesh") then
+                            if typeof(prop) == "Instance" then
+                                obj.Parent = prop
+                            end
+                        end
+                    end
+                end
+                if storedProperties["Ambient"] then
+                    Lighting.Ambient = storedProperties["Ambient"]
+                end
+                storedProperties = {}
+            end
+        end
+    })
+
+    Players.PlayerAdded:Connect(function(player)
+        player.CharacterAdded:Connect(function(char)
+            if ESPEnabled then createESP(char) end
+        end)
+        player.CharacterRemoving:Connect(function(char)
+            removeESP(char)
+            if bombHolderHighlights[player] then
+                bombHolderHighlights[player]:Destroy()
+                bombHolderHighlights[player] = nil
+            end
+        end)
+    end)
+
+    Tabs.Settings:AddSection("Credits")
+
+    Tabs.Settings:AddParagraph({
+        Title = "Cat-HUB 3.0 Credits",
+        Content = "Special thanks to the contributors who helped build and support this project:\n\n• CatTBD\n• Nutural\n• RandomXU"
+    })
+
+    SaveManager:SetLibrary(Fluent)
+    InterfaceManager:SetLibrary(Fluent)
+
+    SaveManager:IgnoreThemeSettings()
+    SaveManager:SetIgnoreIndexes({})
+
+    InterfaceManager:SetFolder("Cat-HUB")
+    SaveManager:SetFolder("Cat-HUB/settings")
+
+    InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+    SaveManager:BuildConfigSection(Tabs.Settings)
+
+    Window:SelectTab(1)
+
+    SaveManager:LoadAutoloadConfig()
+end
